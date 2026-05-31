@@ -1,0 +1,12 @@
+{
+  "id": "level-01-shortest-path",
+  "levelId": "level-01",
+  "title": "Shortest Safe Route",
+  "description": "Use the collected route fragments to find the minimum number of safe corridor steps from Delta Hall to the locked lab.",
+  "prompt": "Graph edges: A-B 2, A-C 5, B-D 2, C-D 1, D-E 3. What is the shortest distance from A to E?",
+  "acceptedAnswers": ["7", "seven"],
+  "publicHints": [
+    "The answer is a single integer.",
+    "Player A and Player B each see different graph fragments in the room."
+  ]
+}

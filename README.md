@@ -21,3 +21,20 @@ CS2410 Software Studio 期末專案規劃倉庫。前端依課程規定使用 Co
 3. Prompt Injection / LLM 關卡：玩家需要透過對話策略向 AI NPC 套出關鍵線索。
 
 技術展示重點是 Cocos Creator、多玩家同步、鬼魂行為樹與尋路、動作辨識、LLM 串接與受控提示設計。
+
+## 後端快速啟動
+
+```bash
+pnpm install
+pnpm dev
+```
+
+預設後端在 `http://localhost:8787`，health check 為 `GET /health`。WebSocket room gateway 為
+`ws://localhost:8787/ws?roomId=<ROOM_ID>&playerId=<PLAYER_ID>`。
+
+常用檢查：
+
+```bash
+pnpm typecheck
+pnpm test
+```
