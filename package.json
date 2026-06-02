@@ -1,0 +1,12 @@
+{
+  "name": "escape-nthu",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.0.0",
+  "scripts": {
+    "dev": "pnpm --filter @escape-nthu/server dev",
+    "build": "pnpm --filter @escape-nthu/server build",
+    "typecheck": "pnpm --filter @escape-nthu/server typecheck",
+    "test": "pnpm --filter @escape-nthu/server test"
+  }
+}
