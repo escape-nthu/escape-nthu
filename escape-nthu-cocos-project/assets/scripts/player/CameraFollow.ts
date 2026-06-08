@@ -17,11 +17,9 @@ export default class CameraFollow extends cc.Component {
     private halfViewH: number = 0;
 
     onLoad() {
-        const canvas = cc.Canvas.instance;
-        if (canvas) {
-            this.halfViewW = canvas.designResolution.width / 2;
-            this.halfViewH = canvas.designResolution.height / 2;
-        }
+        const visibleSize = cc.view.getVisibleSize();
+        this.halfViewW = visibleSize.width / 2;
+        this.halfViewH = visibleSize.height / 2;
 
         EventBus.on("room:changed", this.onRoomChanged, this);
     }
@@ -50,7 +48,6 @@ export default class CameraFollow extends cc.Component {
         let x = targetPos.x;
         let y = targetPos.y;
 
-        // Clamp camera to map bounds if map is larger than viewport
         if (this.mapSize.width > this.halfViewW * 2) {
             x = this.clamp(x, this.halfViewW, this.mapSize.width - this.halfViewW);
         } else {
