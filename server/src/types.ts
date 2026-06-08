@@ -36,6 +36,7 @@ export type RoomStateSnapshot = {
 export type ServerEvent =
   | { type: "server:welcome"; payload: { playerId: string; state: RoomStateSnapshot } }
   | { type: "room:state"; payload: RoomStateSnapshot }
+  | { type: "room:transition"; payload: { targetRoomId: string; arrivalDoorId: string; initiatorId: string } }
   | { type: "player:connected"; payload: { playerId: string; role: PlayerRole } }
   | { type: "player:disconnected"; payload: { playerId: string; role: PlayerRole } }
   | { type: "player:position"; payload: { playerId: string; position: Vector2; direction?: string; animation?: string } }
@@ -50,4 +51,5 @@ export type ClientEvent =
   | { type: "player:position"; payload: { position: Vector2; direction?: string; animation?: string } }
   | { type: "clue:collect"; payload: { clueId: string } }
   | { type: "level:complete"; payload: { levelId: LevelId } }
-  | { type: "ghost:update"; payload: Record<string, unknown> };
+  | { type: "ghost:update"; payload: Record<string, unknown> }
+  | { type: "room:transition"; payload: { targetRoomId: string; arrivalDoorId: string } };

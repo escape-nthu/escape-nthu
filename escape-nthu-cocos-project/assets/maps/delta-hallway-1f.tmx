@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<map version="1.10" tiledversion="1.10.2" orientation="orthogonal" renderorder="right-down" width="30" height="20" tilewidth="32" tileheight="32" infinite="0" nextlayerid="8" nextobjectid="20">
+ <tileset firstgid="1" name="placeholder" tilewidth="32" tileheight="32" tilecount="4" columns="2">
+  <image source="tilesets/placeholder-tiles.png" width="64" height="64"/>
+ </tileset>
+
+ <!-- Ground layer: fill with tile 1 (floor) -->
+ <layer id="1" name="ground" width="30" height="20">
+  <data encoding="csv">
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
+1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1
+</data>
+ </layer>
+
+ <!-- Walls layer: border walls using tile 2 -->
+ <layer id="2" name="walls" width="30" height="20">
+  <data encoding="csv">
+2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,2,2,2,2,2,2,2,2,2,2,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,2,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,2,2,2,2,0,0,2,2,2,2,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,2,
+2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2,2
+</data>
+ </layer>
+
+ <!-- Collision object layer: rectangles for all wall areas -->
+ <objectgroup id="3" name="collision">
+  <!-- Top wall -->
+  <object id="1" name="top-wall" x="0" y="0" width="960" height="32"/>
+  <!-- Bottom wall -->
+  <object id="2" name="bottom-wall" x="0" y="608" width="960" height="32"/>
+  <!-- Left wall -->
+  <object id="3" name="left-wall" x="0" y="0" width="32" height="640"/>
+  <!-- Right wall -->
+  <object id="4" name="right-wall" x="928" y="0" width="32" height="640"/>
+  <!-- Interior room: top wall -->
+  <object id="5" name="room-top" x="320" y="256" width="320" height="32"/>
+  <!-- Interior room: bottom-left wall -->
+  <object id="6" name="room-bot-left" x="320" y="384" width="128" height="32"/>
+  <!-- Interior room: bottom-right wall -->
+  <object id="7" name="room-bot-right" x="512" y="384" width="128" height="32"/>
+  <!-- Interior room: left wall -->
+  <object id="8" name="room-left" x="320" y="256" width="32" height="160"/>
+  <!-- Interior room: right wall -->
+  <object id="9" name="room-right" x="608" y="256" width="32" height="160"/>
+ </objectgroup>
+
+ <!-- Door trigger zones -->
+ <objectgroup id="4" name="doors">
+  <!-- Door to 2F: top-right area of the map -->
+  <object id="10" name="door-to-2f" x="880" y="32" width="48" height="64">
+   <properties>
+    <property name="spawnX" type="int" value="880"/>
+    <property name="spawnY" type="int" value="128"/>
+   </properties>
+  </object>
+  <!-- Door to lab 301: inside the interior room opening -->
+  <object id="11" name="door-to-lab" x="448" y="384" width="64" height="48">
+   <properties>
+    <property name="spawnX" type="int" value="480"/>
+    <property name="spawnY" type="int" value="352"/>
+   </properties>
+  </object>
+ </objectgroup>
+
+ <!-- Interactable objects -->
+ <objectgroup id="5" name="interactables">
+  <object id="12" name="clue-graph-note" x="192" y="192" width="32" height="32">
+   <properties>
+    <property name="type" value="clue"/>
+    <property name="clueId" value="graph-note-01"/>
+    <property name="clueText" value="A faded graph diagram showing nodes A through E with weighted edges."/>
+    <property name="category" value="algorithm"/>
+   </properties>
+  </object>
+  <object id="13" name="clue-error-log" x="528" y="320" width="32" height="32">
+   <properties>
+    <property name="type" value="clue"/>
+    <property name="clueId" value="error-log-01"/>
+    <property name="clueText" value="A terminal log: ERROR - shortest path computation failed at node D."/>
+    <property name="category" value="algorithm"/>
+   </properties>
+  </object>
+ </objectgroup>
+
+ <!-- Spawn points -->
+ <objectgroup id="6" name="spawn">
+  <object id="14" name="player-a-spawn" x="128" y="320" width="0" height="0"/>
+  <object id="15" name="player-b-spawn" x="768" y="320" width="0" height="0"/>
+ </objectgroup>
+</map>
