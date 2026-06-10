@@ -12,7 +12,7 @@ export default class CameraFollow extends cc.Component {
     @property
     smoothSpeed: number = 5;
 
-    private mapSize: cc.Size = cc.size(0, 0);
+    private roomSize: cc.Size = cc.size(0, 0);
     private halfViewW: number = 0;
     private halfViewH: number = 0;
 
@@ -30,11 +30,11 @@ export default class CameraFollow extends cc.Component {
 
     private onRoomChanged(_roomId: string) {
         this.scheduleOnce(() => {
-            const roomControllers = cc.director.getScene()
+            const controllers = cc.director.getScene()
                 .getComponentsInChildren(RoomController);
-            for (const rc of roomControllers) {
+            for (const rc of controllers) {
                 if (rc.node.active) {
-                    this.mapSize = rc.getMapPixelSize();
+                    this.roomSize = rc.getRoomSize();
                     return;
                 }
             }
@@ -48,16 +48,16 @@ export default class CameraFollow extends cc.Component {
         let x = targetPos.x;
         let y = targetPos.y;
 
-        if (this.mapSize.width > this.halfViewW * 2) {
-            x = this.clamp(x, this.halfViewW, this.mapSize.width - this.halfViewW);
+        if (this.roomSize.width > this.halfViewW * 2) {
+            x = this.clamp(x, this.halfViewW, this.roomSize.width - this.halfViewW);
         } else {
-            x = this.mapSize.width / 2;
+            x = this.roomSize.width / 2;
         }
 
-        if (this.mapSize.height > this.halfViewH * 2) {
-            y = this.clamp(y, this.halfViewH, this.mapSize.height - this.halfViewH);
+        if (this.roomSize.height > this.halfViewH * 2) {
+            y = this.clamp(y, this.halfViewH, this.roomSize.height - this.halfViewH);
         } else {
-            y = this.mapSize.height / 2;
+            y = this.roomSize.height / 2;
         }
 
         const lerp = 1 - Math.exp(-this.smoothSpeed * dt);

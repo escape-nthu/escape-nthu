@@ -82,12 +82,6 @@ assets/
       NotebookPanel.ts
       Toast.ts
       LoadingOverlay.ts
-  maps/
-    tilesets/           # Tiled tileset images (.png) and definitions (.tsx)
-    delta-hallway-1f.tmx
-    delta-hallway-2f.tmx
-    delta-lab-301.tmx
-    cs-server-room.tmx
   resources/
     prefabs/
       rooms/            # Room prefabs loaded at runtime via cc.resources.load
