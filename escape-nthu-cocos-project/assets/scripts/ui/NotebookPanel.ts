@@ -1,13 +1,7 @@
 import EventBus from "../core/EventBus";
-import GameState from "../core/GameState";
+import GameState, { ClueEntry } from "../core/GameState";
 
 const { ccclass, property } = cc._decorator;
-
-interface ClueEntry {
-    clueId: string;
-    text: string;
-    category: string;
-}
 
 @ccclass
 export default class NotebookPanel extends cc.Component {
@@ -19,18 +13,15 @@ export default class NotebookPanel extends cc.Component {
     clueEntryPrefab: cc.Prefab = null;
 
     private isOpen: boolean = false;
-    private clueEntries: ClueEntry[] = [];
 
     onLoad() {
         this.node.active = false;
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
-        EventBus.on("ui:show-clue", this.onShowClue, this);
         EventBus.on("clue:collected", this.onClueCollected, this);
     }
 
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
-        EventBus.off("ui:show-clue", this.onShowClue, this);
         EventBus.off("clue:collected", this.onClueCollected, this);
     }
 
@@ -49,12 +40,6 @@ export default class NotebookPanel extends cc.Component {
         }
     }
 
-    private onShowClue(data: ClueEntry) {
-        if (!this.clueEntries.find(e => e.clueId === data.clueId)) {
-            this.clueEntries.push(data);
-        }
-    }
-
     private onClueCollected(_clueId: string) {
         if (this.isOpen) {
             this.refreshDisplay();
@@ -65,7 +50,12 @@ export default class NotebookPanel extends cc.Component {
         if (!this.contentNode) return;
         this.contentNode.removeAllChildren();
 
-        for (const entry of this.clueEntries) {
+        const state = GameState.instance;
+        if (!state) return;
+
+        const entries: ClueEntry[] = state.getAllClues();
+
+        for (const entry of entries) {
             if (this.clueEntryPrefab) {
                 const node = cc.instantiate(this.clueEntryPrefab);
                 const label = node.getComponentInChildren(cc.Label);

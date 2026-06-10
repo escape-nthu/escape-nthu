@@ -28,7 +28,11 @@ export default class ClueObject extends Interactable {
         }
 
         if (state) {
-            state.collectClue(this.clueId);
+            state.collectClue({
+                clueId: this.clueId,
+                text: this.clueText,
+                category: this.clueCategory,
+            });
         }
 
         this.collected = true;

@@ -1,5 +1,6 @@
 import { ROOM_REGISTRY, getInitialRoom } from "./RoomRegistry";
 import DoorTrigger from "./DoorTrigger";
+import RoomController from "./RoomController";
 import EventBus from "../core/EventBus";
 
 const { ccclass, property } = cc._decorator;
@@ -14,6 +15,8 @@ export default class RoomManager extends cc.Component {
 
     private loadedRooms: Map<string, cc.Node> = new Map();
     private currentRoomId: string = "";
+    /** 玩家剛從這扇門進來，在離開碰撞範圍前不再觸發 */
+    arrivalDoorId: string | null = null;
 
     onLoad() {
         RoomManager.instance = this;
@@ -68,12 +71,15 @@ export default class RoomManager extends cc.Component {
         this.currentRoomId = targetRoomId;
 
         this.positionPlayerAtDoor(target, arrivalDoorId);
+        this.arrivalDoorId = arrivalDoorId;
+
         EventBus.emit("room:changed", targetRoomId);
     }
 
     private positionPlayerAtDoor(roomNode: cc.Node, doorId: string | null): void {
         if (!this.localPlayer) return;
 
+        // 1. 從門切換進來 → 用門的 spawnOffset
         if (doorId) {
             const doorTriggers = roomNode.getComponentsInChildren(DoorTrigger);
             for (const dt of doorTriggers) {
@@ -84,8 +90,20 @@ export default class RoomManager extends cc.Component {
             }
         }
 
-        // Fallback: use room center or (0, 0)
-        this.localPlayer.setPosition(0, 0);
+        // 2. 初次進入 → 找房間內名為 SpawnPoint 的節點
+        const spawnNode = roomNode.getChildByName("SpawnPoint");
+        if (spawnNode) {
+            this.localPlayer.setPosition(spawnNode.position);
+            return;
+        }
+
+        // 3. 都沒有 → 用房間中心
+        const rc = roomNode.getComponent(RoomController);
+        if (rc) {
+            this.localPlayer.setPosition(rc.roomWidth / 2, rc.roomHeight / 2);
+        } else {
+            this.localPlayer.setPosition(0, 0);
+        }
     }
 
     private loadPrefab(path: string): Promise<cc.Node> {

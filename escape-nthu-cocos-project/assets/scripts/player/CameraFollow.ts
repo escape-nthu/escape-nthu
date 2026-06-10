@@ -1,4 +1,3 @@
-import RoomController from "../map/RoomController";
 import EventBus from "../core/EventBus";
 
 const { ccclass, property } = cc._decorator;
@@ -12,15 +11,9 @@ export default class CameraFollow extends cc.Component {
     @property
     smoothSpeed: number = 5;
 
-    private roomSize: cc.Size = cc.size(0, 0);
-    private halfViewW: number = 0;
-    private halfViewH: number = 0;
+    private needsSnap: boolean = true;
 
     onLoad() {
-        const visibleSize = cc.view.getVisibleSize();
-        this.halfViewW = visibleSize.width / 2;
-        this.halfViewH = visibleSize.height / 2;
-
         EventBus.on("room:changed", this.onRoomChanged, this);
     }
 
@@ -28,44 +21,30 @@ export default class CameraFollow extends cc.Component {
         EventBus.off("room:changed", this.onRoomChanged, this);
     }
 
-    private onRoomChanged(_roomId: string) {
-        this.scheduleOnce(() => {
-            const controllers = cc.director.getScene()
-                .getComponentsInChildren(RoomController);
-            for (const rc of controllers) {
-                if (rc.node.active) {
-                    this.roomSize = rc.getRoomSize();
-                    return;
-                }
-            }
-        }, 0);
+    private onRoomChanged() {
+        this.needsSnap = true;
+    }
+
+    /** 外部也可以手動呼叫，立刻對齊玩家 */
+    snapToTarget() {
+        if (!this.target) return;
+        this.node.x = this.target.x;
+        this.node.y = this.target.y;
     }
 
     lateUpdate(dt: number) {
         if (!this.target) return;
 
-        const targetPos = this.target.position;
-        let x = targetPos.x;
-        let y = targetPos.y;
-
-        if (this.roomSize.width > this.halfViewW * 2) {
-            x = this.clamp(x, this.halfViewW, this.roomSize.width - this.halfViewW);
-        } else {
-            x = this.roomSize.width / 2;
+        if (this.needsSnap) {
+            this.snapToTarget();
+            this.needsSnap = false;
+            return;
         }
 
-        if (this.roomSize.height > this.halfViewH * 2) {
-            y = this.clamp(y, this.halfViewH, this.roomSize.height - this.halfViewH);
-        } else {
-            y = this.roomSize.height / 2;
-        }
-
+        const tx = this.target.x;
+        const ty = this.target.y;
         const lerp = 1 - Math.exp(-this.smoothSpeed * dt);
-        this.node.x += (x - this.node.x) * lerp;
-        this.node.y += (y - this.node.y) * lerp;
-    }
-
-    private clamp(val: number, min: number, max: number): number {
-        return Math.max(min, Math.min(max, val));
+        this.node.x += (tx - this.node.x) * lerp;
+        this.node.y += (ty - this.node.y) * lerp;
     }
 }

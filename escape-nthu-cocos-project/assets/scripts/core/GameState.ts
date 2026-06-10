@@ -2,12 +2,18 @@ import EventBus from "./EventBus";
 
 const { ccclass } = cc._decorator;
 
+export interface ClueEntry {
+    clueId: string;
+    text: string;
+    category: string;
+}
+
 @ccclass
 export default class GameState extends cc.Component {
 
     static instance: GameState = null;
 
-    private collectedClues: Set<string> = new Set();
+    private collectedClues: Map<string, ClueEntry> = new Map();
     private lockedDoors: Set<string> = new Set();
 
     onLoad() {
@@ -18,10 +24,10 @@ export default class GameState extends cc.Component {
         GameState.instance = this;
     }
 
-    collectClue(clueId: string): boolean {
-        if (this.collectedClues.has(clueId)) return false;
-        this.collectedClues.add(clueId);
-        EventBus.emit("clue:collected", clueId);
+    collectClue(entry: ClueEntry): boolean {
+        if (this.collectedClues.has(entry.clueId)) return false;
+        this.collectedClues.set(entry.clueId, entry);
+        EventBus.emit("clue:collected", entry.clueId);
         return true;
     }
 
@@ -29,8 +35,12 @@ export default class GameState extends cc.Component {
         return this.collectedClues.has(clueId);
     }
 
-    getAllClues(): string[] {
-        return Array.from(this.collectedClues);
+    getClue(clueId: string): ClueEntry | undefined {
+        return this.collectedClues.get(clueId);
+    }
+
+    getAllClues(): ClueEntry[] {
+        return Array.from(this.collectedClues.values());
     }
 
     lockDoor(doorId: string): void {
