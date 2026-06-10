@@ -12,41 +12,23 @@ export interface RoomDef {
 }
 
 const rooms: [string, RoomDef][] = [
-    ["delta-1f-hallway", {
-        roomId: "delta-1f-hallway",
-        displayName: "Delta Building 1F Hallway",
-        prefabPath: "prefabs/rooms/Delta1FHallway",
+    ["Room_temp_1", {
+        roomId: "Room_temp_1",
+        displayName: "Room_temp_1",
+        prefabPath: "prefabs/rooms/Room_temp_1",
         initialRoom: true,
         doors: [
-            { doorId: "door-to-2f", connectsTo: { roomId: "delta-2f-hallway", doorId: "door-from-1f" } },
-            { doorId: "door-to-lab", connectsTo: { roomId: "delta-lab-301", doorId: "door-from-hallway" } },
+            { doorId: "door_1a", connectsTo: { roomId: "Room_temp_2", doorId: "door_1b" } }
         ],
     }],
-    ["delta-2f-hallway", {
-        roomId: "delta-2f-hallway",
-        displayName: "Delta Building 2F Hallway",
-        prefabPath: "prefabs/rooms/Delta2FHallway",
+    ["Room_temp_2", {
+        roomId: "Room_temp_2",
+        displayName: "Room_temp_2",
+        prefabPath: "prefabs/rooms/Room_temp_2",
         doors: [
-            { doorId: "door-from-1f", connectsTo: { roomId: "delta-1f-hallway", doorId: "door-to-2f" } },
-            { doorId: "door-to-server", connectsTo: { roomId: "cs-server-room", doorId: "door-from-2f" } },
+            { doorId: "door_1b", connectsTo: { roomId: "Room_temp_1", doorId: "door_1a" } }
         ],
-    }],
-    ["delta-lab-301", {
-        roomId: "delta-lab-301",
-        displayName: "Delta Lab 301",
-        prefabPath: "prefabs/rooms/DeltaLab301",
-        doors: [
-            { doorId: "door-from-hallway", connectsTo: { roomId: "delta-1f-hallway", doorId: "door-to-lab" } },
-        ],
-    }],
-    ["cs-server-room", {
-        roomId: "cs-server-room",
-        displayName: "CS Server Room",
-        prefabPath: "prefabs/rooms/CSServerRoom",
-        doors: [
-            { doorId: "door-from-2f", connectsTo: { roomId: "delta-2f-hallway", doorId: "door-to-server" } },
-        ],
-    }],
+    }]
 ];
 
 export const ROOM_REGISTRY: Map<string, RoomDef> = new Map(rooms);
