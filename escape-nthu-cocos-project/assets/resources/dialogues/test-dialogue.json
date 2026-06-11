@@ -1,0 +1,34 @@
+{
+    "id": "test-dialogue",
+    "lines": [
+        {
+            "speaker": "系統",
+            "text": "歡迎來到測試房間。",
+            "portraitLeft": null,
+            "portraitRight": null,
+            "activeSide": "none"
+        },
+        {
+            "speaker": "教授",
+            "text": "你好，我是教授。這裡最近發生了一些奇怪的事情...",
+            "portraitLeft": null,
+            "portraitRight": null,
+            "activeSide": "left"
+        },
+        {
+            "speaker": "教授",
+            "text": "伺服器室的門被鎖住了，你能幫忙調查嗎？",
+            "portraitLeft": null,
+            "portraitRight": null,
+            "activeSide": "left"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "test-dialogue-seen" },
+        { "type": "emitEvent", "event": "ui:toast", "data": "對話結束！" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": ["test-dialogue-seen"]
+    }
+}

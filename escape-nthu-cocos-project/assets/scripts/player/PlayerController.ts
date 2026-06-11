@@ -1,3 +1,5 @@
+import EventBus from "../core/EventBus";
+
 const { ccclass, property } = cc._decorator;
 
 @ccclass
@@ -11,6 +13,7 @@ export default class PlayerController extends cc.Component {
 
     private moveDir: cc.Vec2 = cc.v2(0, 0);
     private isSprinting: boolean = false;
+    private frozen: boolean = false;
 
     private keyState = {
         w: false, a: false, s: false, d: false,
@@ -20,14 +23,22 @@ export default class PlayerController extends cc.Component {
     onLoad() {
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_UP, this.onKeyUp, this);
+        EventBus.on("dialogue:start", this.onFreeze, this);
+        EventBus.on("dialogue:end", this.onUnfreeze, this);
     }
 
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_UP, this.onKeyUp, this);
+        EventBus.off("dialogue:start", this.onFreeze, this);
+        EventBus.off("dialogue:end", this.onUnfreeze, this);
     }
 
+    private onFreeze() { this.frozen = true; }
+    private onUnfreeze() { this.frozen = false; }
+
     update(dt: number) {
+        if (this.frozen) return;
         this.moveDir.x = 0;
         this.moveDir.y = 0;
 

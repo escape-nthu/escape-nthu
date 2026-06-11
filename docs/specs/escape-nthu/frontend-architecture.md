@@ -17,7 +17,8 @@
 7. [房間管理與切換](#房間管理與切換)
 8. [地圖格局設計指南](#地圖格局設計指南)
 9. [互動物件與線索系統](#互動物件與線索系統)
-10. [UI 系統](#ui-系統)
+10. [對話系統](#對話系統)
+11. [UI 系統](#ui-系統)
 
 ---
 
@@ -37,7 +38,9 @@ Game (Scene Root)
 └── UICanvas                        cc.Canvas (960×640)，group = "ui"
      ├── UICamera                   cc.Camera，只渲染 ui group
      ├── GameManager                GameManager（設定碰撞系統和雙 Camera）
-     ├── GameState                  GameState（線索/門鎖狀態 singleton）
+     ├── GameState                  GameState（線索/門鎖/flags 狀態 singleton）
+     ├── DialogueManager            DialogueManager（對話系統 singleton）
+     ├── DialoguePanel              對話 UI（姓名欄、文字區、左右立繪）
      ├── NotebookPanel              NotebookPanel（Tab 鍵開關）
      └── Toast                      Toast + cc.Label（短暫提示文字）
 ```
@@ -406,6 +409,105 @@ NotebookPanel.refreshDisplay()
 ```
 
 `GameState` 是唯一的資料來源（single source of truth）。NotebookPanel 不自己存資料，每次開啟時都從 GameState 讀取。
+
+---
+
+## 對話系統
+
+視覺小說風格的對話系統，支援多種觸發方式和對話結束後的狀態變更。
+
+### 相關腳本
+
+| 腳本 | 職責 |
+|------|------|
+| `DialogueData.ts` | 純介面定義（DialogueLine, DialogueAction, DialogueSequence） |
+| `DialogueManager.ts` | Singleton，載入 JSON、檢查條件、驅動面板、執行結束動作 |
+| `DialoguePanel.ts` | UI：姓名欄、文字區、左右立繪（說話者亮、不說話者暗） |
+| `DialogueTrigger.ts` | 區域觸發器，支援自動觸發 / 按 E 觸發 |
+| `DialogueInteractable.ts` | 繼承 Interactable，按 E 開始對話（用於 NPC、物品） |
+
+### 對話資料格式
+
+對話用 JSON 檔案存放在 `resources/dialogues/`，runtime 透過 `cc.resources.load` 載入。
+
+```jsonc
+{
+  "id": "intro-room1",
+  "lines": [
+    {
+      "speaker": "教授",
+      "text": "歡迎來到台達館...",
+      "portraitLeft": "portraits/professor",   // resources/ 相對路徑，null = 不顯示
+      "portraitRight": null,
+      "activeSide": "left"                      // "left" | "right" | "none"
+    }
+  ],
+  "onComplete": [
+    { "type": "setFlag", "flag": "intro-seen" },
+    { "type": "unlockDoor", "doorId": "door-to-lab" },
+    { "type": "collectClue", "clueId": "hint-01", "text": "...", "category": "main-quest" },
+    { "type": "emitEvent", "event": "ui:toast", "data": "獲得了新的線索" }
+  ],
+  "conditions": {
+    "requireFlags": [],            // 需要這些 flag 才觸發
+    "excludeFlags": ["intro-seen"] // 有這些 flag 就不觸發
+  }
+}
+```
+
+### 觸發方式
+
+| 方式 | 使用元件 | 設定 |
+|------|---------|------|
+| 進入房間自動觸發 | `DialogueTrigger` | 放在 SpawnPoint 旁，`autoTrigger = true`, `oneShot = true` |
+| 碰到區域觸發 | `DialogueTrigger` | 放在指定位置，`autoTrigger = true` |
+| 按 E 互動觸發 | `DialogueInteractable` | 掛在 NPC / 物品節點上（group = "interactable"） |
+| 碰到區域按 E | `DialogueTrigger` | `autoTrigger = false` |
+
+### 對話流程
+
+```
+觸發對話 → DialogueManager.play(dialogueId)
+    │  載入 JSON（有快取）
+    │  檢查 conditions
+    ▼
+dialogue:start 事件 → PlayerController 凍結移動
+DialoguePanel 顯示第一行
+    │
+    ▼  Space / Enter / 點擊
+advance() → 下一行...
+    │
+    ▼  最後一行之後
+endDialogue()
+├── 執行 onComplete actions（setFlag / unlockDoor / collectClue / emitEvent）
+└── dialogue:end 事件 → PlayerController 解凍
+```
+
+### 立繪顯示規則
+
+- `activeSide = "left"` → 左立繪 opacity 255、右立繪 opacity 100
+- `activeSide = "right"` → 反過來
+- `activeSide = "none"` → 兩邊都 dim（旁白）
+- `portraitLeft / Right = null` → 該側立繪隱藏
+
+### 遊戲狀態 Flags
+
+`GameState` 新增 `flags: Set<string>`，用於追蹤遊戲進度：
+
+```typescript
+GameState.instance.setFlag("intro-seen");    // 設定 flag
+GameState.instance.hasFlag("intro-seen");    // 查詢 flag
+```
+
+Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。
+
+### 新增房間觸發節點的步驟
+
+1. 在房間 Prefab 的 Interactables（或新建 DialogueTriggers 容器）下新增空節點
+2. Group 設為 `interactable`
+3. 加入 `cc.BoxCollider`
+4. 加入 `DialogueTrigger` 或 `DialogueInteractable` 腳本，填入 `dialogueId`
+5. 確認對應的 JSON 檔案在 `resources/dialogues/` 中
 
 ---
 
