@@ -30,7 +30,7 @@ docs/
 
 2. 技術設計
    - 定義 Cocos 場景、元件、後端服務與資料流。
-   - 寫清楚 API / WebSocket / LLM / 影像辨識的邊界。
+   - 寫清楚 API / WebSocket / LLM / 手勢辨識的邊界。
    - 標出風險與 fallback。
 
 3. 任務拆分
@@ -75,7 +75,6 @@ docs/
 2. 多人連線與房間同步。
 3. 鬼魂行為樹、追逐與尋路。
 4. 演算法題 AC/WA 驗證。
-5. 影像辨識動作判定。
+5. 手勢辨識判定。
 6. LLM NPC 與 prompt injection 關卡。
 7. 場景、美術、音效與 UI polish。
-

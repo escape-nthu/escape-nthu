@@ -6,7 +6,7 @@
 - 後端保管 LLM API key、prompt、房間狀態與題目驗證邏輯。
 - 三個關卡各自可獨立驗收，也能串成一條完整 demo 流程。
 - 多人連線只同步必要狀態，避免為了完整物理同步拖慢開發。
-- 鬼魂 AI、影像辨識、LLM 關卡都要有 fallback，確保 demo 不會因單一外部依賴失敗而中斷。
+- 鬼魂 AI、手勢辨識、LLM 關卡都要有 fallback，確保 demo 不會因單一外部依賴失敗而中斷。
 
 ## 建議技術棧
 
@@ -17,7 +17,7 @@
 | HTTP API | Fastify 或 Express | 輕量處理題目驗證、AI 對話與房間操作。 |
 | 即時同步 | WebSocket 或 Socket.IO | 適合雙人房間、位置、線索與關卡狀態同步。 |
 | 暫存狀態 | In-memory store | MVP 不需要帳號與永久資料庫。 |
-| 影像辨識 | TensorFlow.js pose-detection / MoveNet 原型 | 官方 TensorFlow.js models 有 browser pose detection；MoveNet 適合即時姿態偵測原型。 |
+| 手勢辨識 | MediaPipe 或 TensorFlow.js pose/hand detection 原型 | 適合在瀏覽器端做即時手勢或姿態偵測，不需要把影像送到後端。 |
 | LLM | 後端 LLM adapter | 避免前端暴露 key，也方便做 prompt 防護與 fallback。 |
 
 ## 執行時架構
@@ -30,8 +30,8 @@ flowchart LR
   B --> API
   API --> Puzzle["演算法題驗證器"]
   API --> LLM["LLM NPC Adapter"]
-  A --> VisionA["瀏覽器影像辨識"]
-  B --> VisionB["瀏覽器影像辨識"]
+  A --> VisionA["瀏覽器手勢辨識"]
+  B --> VisionB["瀏覽器手勢辨識"]
   WS --> State["Room State Store"]
   API --> State
 ```
@@ -73,8 +73,8 @@ assets/
       DetectionZone.ts
     levels/
       AlgorithmLevel.ts
-      MotionLevel.ts
       PromptInjectionLevel.ts
+      GestureLevel.ts
       LevelProgression.ts
     dialogue/
       DialoguePanel.ts
@@ -87,7 +87,7 @@ assets/
     vision/
       CameraPermissionPanel.ts
       PoseDetectorClient.ts
-      JumpingJackCounter.ts
+      GestureDetectorClient.ts
       VisionFallback.ts
     coop/
       RoomClient.ts
@@ -125,8 +125,8 @@ assets/
 | `GhostBehaviorTree` | 控制鬼魂巡邏、搜尋、追逐、返回等狀態。 |
 | `GhostPathfinder` | 用路徑點、格線或簡化 A* 幫鬼魂繞障礙。 |
 | `AlgorithmLevel` | 管理第一關題目、提示、提交與 AC/WA UI。 |
-| `MotionLevel` | 管理攝影機權限、姿態偵測、動作計數與 fallback。 |
 | `PromptInjectionLevel` | 管理 AI NPC 對話目標、關鍵線索與完成條件。 |
+| `GestureLevel` | 管理陽台手勢關卡、攝影機權限、手勢偵測與 fallback。 |
 | `NotebookPanel` | 顯示兩位玩家取得的線索與 AI hint。 |
 
 ## 後端結構
@@ -232,16 +232,16 @@ server/
 }
 ```
 
-### 回報動作關卡完成
+### 回報手勢關卡完成
 
-`POST /api/levels/motion/complete`
+`POST /api/levels/gesture/complete`
 
 ```json
 {
   "roomId": "ABCD",
   "playerId": "p_456",
-  "motionType": "jumping-jack",
-  "count": 10,
+  "gestureType": "raised-hand",
+  "syncToken": "balcony-03",
   "confidence": 0.82
 }
 ```
@@ -301,7 +301,7 @@ type RoomState = {
   completedLevels: string[];
   npcHintTiers: Record<string, number>;
   puzzleAttempts: Record<string, number>;
-  motionProgress: Record<string, number>;
+  gestureProgress: Record<string, number>;
   ghostState: GhostState;
   phase: "lobby" | "playing" | "escaped" | "failed";
 };
@@ -321,12 +321,12 @@ Root
 
 尋路先以「路徑點 graph」完成，若時間足夠再升級成格線 A*。
 
-## 影像辨識設計
+## 手勢辨識設計
 
-- 使用瀏覽器攝影機輸入，只在前端做姿態辨識，避免傳送影像到後端。
-- 先支援單人姿態偵測與開合跳計數。
-- 計數邏輯以肩膀、手腕、髖部或腳踝關鍵點變化作簡化判定。
-- 後端只接收完成結果與信心分數，不保存影像。
+- 使用瀏覽器攝影機輸入，只在前端做手勢或姿態辨識，避免傳送影像到後端。
+- 先支援陽台關卡需要的一種指定手勢或同步條件。
+- 判定邏輯以手部、手腕、肩膀或姿態關鍵點變化作簡化判定。
+- 後端只接收完成結果、同步 token 與信心分數，不保存影像。
 - Demo fallback：若攝影機或模型失敗，提供測試模式讓隊友手動觸發完成。
 
 ## LLM / Prompt Injection 關卡設計
@@ -345,6 +345,6 @@ Root
 | --- | --- | --- |
 | 多人連線不穩 | 只同步必要狀態，先做房間與事件，再做位置平滑 | 同機雙視窗 demo 或 debug role switch |
 | 鬼魂卡牆 | 先用路徑點 graph，不一開始追求完整尋路 | 調整地圖與巡邏線讓路徑更單純 |
-| 影像辨識誤判 | 降低動作複雜度，只做一種動作 | 測試模式或手動完成按鈕 |
+| 手勢辨識誤判 | 降低手勢複雜度，只做一種核心手勢 | 測試模式或手動完成按鈕 |
 | LLM 爆雷或答非所問 | hint tier、clue gating、後端檢查 | scripted hints |
 | 三關做不完 | 先完成每關最小可玩版本 | 每關保留短版流程 |
