@@ -1,52 +1,69 @@
-# Project Brief
+# 專案簡報
 
-## Source Constraints
+## 來源限制
 
-Based on the teacher's final project proposal slides and the team proposal PDF:
+依照老師的 final project proposal 投影片與本組 proposal PDF：
 
-- The final project must be a web game built with Cocos Creator.
-- The proposal and development should clearly express motivation, user story, setting, controls, high-risk features, high-value features, similar games, and concept art.
-- The course grading emphasis is mainly effort and technique, so the implementation should make technical work visible instead of relying only on story or art.
-- The proposal should be a practical blueprint, not a detailed game encyclopedia.
+- 期末專案必須是使用 Cocos Creator 製作的 Web Game。
+- 提案與後續開發應清楚呈現動機、使用者故事、遊戲背景、操作方式、高風險分析、高價值分析、類似遊戲與概念畫面。
+- 課程評分重點主要看 effort 與 technique，因此技術實作要能被清楚展示。
+- 提案是團隊共識與開發藍圖，不需要寫成過度細碎的遊戲百科。
 
-## Game Concept
+## 遊戲概念
 
-`逃離清大：Delta Protocol` is a top-down cooperative escape-room horror game set in NTHU's Delta Building and CS Building.
+`逃離清大：Delta Protocol` 是一款發生在清大台達館與資電館的雙人合作 AI 校園恐怖密室解謎遊戲。
 
-Two players are trapped in different buildings after a midnight blackout. They must explore rooms, avoid ghosts, collect asymmetric clues, ask AI NPCs useful questions, solve algorithm-themed knowledge locks, and cooperate to escape.
+兩名玩家在午夜停電後被困在不同區域，必須透過多人連線合作、交換不對稱資訊、躲避鬼魂、完成三個知識與互動混合關卡，最後逃離校園。
 
-## MVP Scope
+平常探索地圖時使用 Top-down 視角；當玩家與 NPC、AI 角色或重要物件互動時，畫面切換成類似視覺小說 Visual Novel 的背景、立繪與對話框。
 
-The MVP should prove one complete game loop:
+## 三個關卡
 
-1. Player A and Player B enter the same room session.
-2. Each player spawns in a different map area.
-3. Both players can explore, interact with objects, and collect clues.
-4. A ghost patrols and can chase a player.
-5. One AI NPC dialogue encounter gives controlled hints based on discovered clues.
-6. One algorithm knowledge lock requires information from both players.
-7. The backend verifies the submitted answer and returns AC or WA.
-8. AC unlocks a key, opens the route, and triggers a short ending.
+1. Binary search 音高 / 節拍關卡
+   - P1 撿到音樂盒並聽到音高，P2 獲得節拍資訊。
+   - 兩人透過溝通，在 tree 結構房間中以 binary search 找到正確音高或節拍路徑。
+   - 關卡有時間限制，取得 AC 後獲得鑰匙或解鎖下一區域。
 
-## Non-Goals For MVP
+2. AI NPC / Prompt Injection 助教關卡
+   - 主題是跟 AI 助教要分數，玩家一開始不知道被扣分原因。
+   - 玩家要蒐集場景資訊，透過誘導、試探或掌握助教喜好，讓 NPC 逐步透露關鍵資訊。
+   - 後端需要控制 NPC 不直接爆雷，並用 hint tier 與 scripted fallback 保證 demo 可完成。
 
-- Full online judge or arbitrary code execution.
-- Large campus map.
-- Many NPCs or branching storylines.
-- Complex combat.
-- Account system.
-- Production-grade matchmaking.
+3. 陽台手勢合作關卡
+   - 兩位玩家分別在台達館與資電館陽台兩兩相望。
+   - 前端使用 MediaPipe 或 browser pose / hand gesture 技術辨識玩家手勢。
+   - 玩家必須用手勢交換訊號或同步啟動機關，完成後進入會合或結局流程。
 
-## Team Ownership
+## MVP 範圍
 
-| Member | Primary Ownership | Secondary Ownership |
+MVP 要證明一個完整遊戲循環：
+
+1. Player A 與 Player B 可以進入同一個房間。
+2. 兩位玩家可以在 Cocos 場景中移動、互動與看到關鍵同步狀態。
+3. 鬼魂可以巡邏、尋路、追逐玩家，並造成明確壓力。
+4. 第一關演算法題可以提交答案並得到 AC/WA。
+5. 第二關可以與 AI 助教 NPC 對話並取得受控線索。
+6. 第三關可以用 MediaPipe 或替代方案完成一種手勢合作挑戰。
+7. 三關完成後觸發逃脫結果畫面。
+
+## MVP 暫不處理
+
+- 完整 Online Judge 或任意程式碼執行。
+- 大型校園地圖。
+- 複雜帳號系統。
+- 高精度健身等級動作評分。
+- 大量 NPC 分支劇情。
+- 生產等級 matchmaking。
+
+## 組員分工
+
+| 組員 | 主要負責 | 次要協作 |
 | --- | --- | --- |
-| 李久恩 | Cocos gameplay frontend, player controller, ghost chase, scene integration | Unity-to-Cocos implementation patterns, frontend polish |
-| 陳可冀 | Backend API, room/session service, AI NPC service, puzzle verification | API documentation, backend testing |
-| 鄭名緯 | Frontend/backend integration, WebSocket sync, Cocos UI panels | Build tooling, end-to-end integration |
-| 潘睦婷 | Game art, UI visual style, effects, concept-to-asset pipeline | Atmosphere, VN dialogue presentation, sound/effect coordination |
+| 李久恩 | Cocos 遊戲前端、玩家控制、鬼魂行為樹、尋路與場景整合 | Unity 經驗轉換成 Cocos 實作模式、前端手感調整 |
+| 陳可冀 | 後端 API、房間/多人同步服務、LLM NPC 服務、題目驗證 | API 文件、後端測試 |
+| 鄭名緯 | 前後端整合、WebSocket 同步、Cocos UI、關卡流程串接 | 建置流程、整合測試、GitHub issue/project 維護 |
+| 潘睦婷 | 遊戲美術、UI 視覺、特效、關卡氛圍 | 手勢關與 AI 對話關的演出、音效與視覺回饋 |
 
-## Success Definition
+## 成功定義
 
-The project is demo-ready when the team can show a 5-8 minute complete run where both players must communicate, the AI NPC behaves like a bounded hint source, the ghost creates pressure, and AC unlocks the final route.
-
+Demo-ready 的標準是：團隊能展示一段 5-8 分鐘的雙人完整通關流程，過程中包含多人連線、鬼魂追逐、三個關卡、AI 對話、手勢辨識與清楚的通關回饋。

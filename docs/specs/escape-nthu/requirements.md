@@ -1,128 +1,152 @@
-# Requirements Spec: Escape NTHU
+# 需求規格：逃離清大
 
-## Requirement Priorities
+## 優先級定義
 
-- Must: required for demo-ready MVP.
-- Should: strong grading/value improvement after MVP is stable.
-- Could: optional extension only after core loop is complete.
+- Must：Demo-ready MVP 必須完成。
+- Should：MVP 穩定後能明顯提高完成度或展示效果。
+- Could：核心流程完成後才做的延伸內容。
 
-## R1: Two-Player Session
+## R1：雙人房間與多人連線
 
-Priority: Must
+優先級：Must
 
-User story: As two players, we want to enter the same game session so that each of us can play a different role in the escape route.
+使用者故事：作為兩位玩家，我們希望進入同一個遊戲房間，並在不同區域合作逃脫。
 
-Acceptance criteria:
+驗收條件：
 
-- Given Player A creates a room, when Player B joins with the room code, then both players enter the same session.
-- Given both players are in a session, when either player moves or triggers a key event, then the other player receives the relevant synchronized state.
-- Given one player disconnects, when the remaining player continues, then the UI shows a waiting/reconnect state instead of silently breaking.
+- 當 Player A 建立房間後，Player B 可以用房間碼加入同一場遊戲。
+- 兩位玩家在同一房間時，位置、關卡進度、線索、門鎖狀態會同步。
+- 任一玩家斷線時，另一位玩家會看到等待或重連提示，而不是遊戲無聲失效。
+- 兩位玩家可以各自持有不同線索，關卡設計不能變成單人即可完成。
 
-## R2: Top-Down Exploration
+## R2：Cocos Top-down 探索
 
-Priority: Must
+優先級：Must
 
-User story: As a player, I want to move through the building, inspect objects, and collect clues so that I can progress through the escape room.
+使用者故事：作為玩家，我希望能在建築內移動、調查物件、收集線索，推進密室逃脫。
 
-Acceptance criteria:
+驗收條件：
 
-- Given the player is in exploration mode, when they press W/A/S/D, then the character moves in the expected direction.
-- Given the player is near an interactable object, when they press E or click it, then the interaction panel opens.
-- Given a clue is collected, when the notebook is opened, then the clue appears in the player's clue list.
+- 玩家在探索模式下可使用 W/A/S/D 移動。
+- 玩家接近可互動物件時，按 E 或點擊可觸發互動。
+- 玩家收集線索後，筆記本或線索 UI 能顯示已取得資訊。
+- 互動、開門、關卡切換不會破壞多人同步狀態。
 
-## R3: Ghost Patrol And Chase
+## R3：鬼魂行為樹、巡邏、追逐與尋路
 
-Priority: Must
+優先級：Must
 
-User story: As a player, I want the ghost to patrol and chase me so that exploration has pressure and urgency.
+使用者故事：作為玩家，我希望鬼魂會巡邏、搜尋、追逐，讓探索有壓力。
 
-Acceptance criteria:
+驗收條件：
 
-- Given the ghost is in patrol mode, when no player is detected, then it follows a predefined patrol path.
-- Given a player enters the ghost detection range, when line of sight is valid, then the ghost switches to chase mode.
-- Given the player hides, escapes range, or reaches a safe zone, when the chase timeout expires, then the ghost returns to patrol.
-- Given the ghost catches the player, then the game applies a clear penalty such as reset to checkpoint, time loss, or clue drop.
+- 鬼魂在沒有發現玩家時會依照巡邏點移動。
+- 鬼魂偵測到玩家時會切換成追逐狀態。
+- 鬼魂追逐時會使用簡化尋路或路徑點系統，不會頻繁卡牆。
+- 玩家躲進安全區、拉開距離或經過一段時間後，鬼魂會回到巡邏或搜尋狀態。
+- 鬼魂抓到玩家後會觸發明確懲罰，例如回到檢查點或扣除時間。
 
-## R4: AI NPC Dialogue
+## R4：第一關：Binary Search 音高 / 節拍演算法題目
 
-Priority: Must
+優先級：Must
 
-User story: As a player, I want to ask an AI NPC questions based on discovered clues so that I can infer the knowledge lock answer.
+使用者故事：作為玩家，我希望透過蒐集音高、節拍與房間路徑線索完成 binary search 題目，讓程式能力與雙人溝通成為逃脫的一部分。
 
-Acceptance criteria:
+驗收條件：
 
-- Given the player opens an AI NPC conversation, when they ask a question, then the backend returns an in-character response.
-- Given the player has not discovered required clues, when they ask for the answer directly, then the NPC refuses or gives a vague hint.
-- Given the player includes relevant clue context, when they ask a focused question, then the NPC can reveal the next hint tier.
-- Given the AI service fails, then the game shows a fallback hint path so the demo can continue.
+- P1 可以取得音樂盒音高線索，P2 可以取得節拍線索。
+- 房間結構以 tree 或左右分支呈現，每次選擇都對應 binary search 的比較結果。
+- 關卡有時間限制，並需要兩位玩家交換資訊才能穩定通過。
+- 玩家可以在鎖或終端機 UI 提交答案。
+- 後端用固定題目資料驗證答案，回傳 AC 或 WA。
+- AC 後會同步解鎖通往下一關的狀態。
+- WA 只提供有限回饋，不直接暴露答案。
 
-## R5: Cooperative Knowledge Lock
+## R5：第二關：AI 助教 / Prompt Injection 線索套取
 
-Priority: Must
+優先級：Must
 
-User story: As two players, we want each side to hold different information so that communication is required to unlock the route.
+使用者故事：作為玩家，我希望透過與 AI 助教對話、設計問題或利用提示詞攻防概念套出扣分原因與關鍵線索。
 
-Acceptance criteria:
+驗收條件：
 
-- Given Player A sees the lock prompt, when Player B has supporting clue data, then neither player alone has enough information.
-- Given both players exchange information, when the correct answer is submitted, then the lock returns AC and unlocks the key.
-- Given an incorrect answer is submitted, then the lock returns WA with limited feedback and does not reveal the full solution.
+- 玩家可以透過文字輸入與 AI 助教 NPC 對話。
+- 後端負責 LLM 串接、prompt 組裝與金鑰保護。
+- 場景中有扣分原因、助教喜好、把柄或錯誤資訊等線索。
+- NPC 不能直接給出最終答案，但可以依照玩家問題與已取得線索逐步透露資訊。
+- 關卡有明確成功條件，例如取得指定關鍵字、分數回復結果或線索 ID。
+- LLM 失敗時，有 scripted fallback 可讓 demo 繼續。
 
-## R6: Algorithm Puzzle Verification
+## R6：第三關：陽台手勢合作 / MediaPipe
 
-Priority: Must
+優先級：Must
 
-User story: As a player, I want the game to validate my answer like an AC/WA result so that the programming theme feels concrete.
+使用者故事：作為玩家，我希望在台達館與資電館陽台隔空合作，透過手勢交換訊號或同步啟動機關。
 
-Acceptance criteria:
+驗收條件：
 
-- Given a lock has predefined test data and expected output, when the player submits an answer, then the backend checks the answer deterministically.
-- Given the answer is correct, then the backend returns `AC`, the key state becomes unlocked, and both clients update.
-- Given the answer is incorrect, then the backend returns `WA`, attempt count increases, and the lock remains closed.
+- 玩家進入陽台手勢關卡時，遊戲會請求攝影機權限並顯示清楚提示。
+- 系統可以透過 MediaPipe 或 browser pose / hand gesture 技術辨識至少一種指定手勢。
+- UI 能顯示目前偵測狀態、有效手勢與同步進度。
+- 達成指定手勢或雙人同步條件後，關卡狀態會同步給兩位玩家。
+- 攝影機或模型載入失敗時，提供 demo fallback，例如手動校驗按鈕或替代小遊戲。
 
-## R7: Visual Novel Dialogue UI
+## R7：關卡流程與通關狀態
 
-Priority: Should
+優先級：Must
 
-User story: As a player, I want dialogue scenes to feel different from exploration so that AI NPC interactions feel dramatic and readable.
+使用者故事：作為玩家，我希望三個關卡能串成一條清楚的逃脫路線。
 
-Acceptance criteria:
+驗收條件：
 
-- Given the player starts dialogue, when the VN overlay opens, then movement pauses and the dialogue UI receives input focus.
-- Given the player exits dialogue, then exploration state resumes without losing player position.
-- Given new dialogue lines arrive, then the UI displays speaker name, portrait, text, and clue context.
+- 三個關卡有明確順序、目標與完成回饋。
+- 任一關完成後，兩位玩家都能看到狀態更新。
+- 三關完成後觸發逃脫成功畫面。
+- 關卡流程可以在 demo 時 5-8 分鐘內完成。
 
-## R8: Clue Notebook
+## R8：視覺小說式 AI 對話 UI
 
-Priority: Should
+優先級：Should
 
-User story: As a player, I want a notebook of collected clues so that I can reason without memorizing every detail.
+使用者故事：作為玩家，我希望 AI NPC 對話和探索畫面有不同呈現，讓對話關卡更有戲劇性。
 
-Acceptance criteria:
+驗收條件：
 
-- Given a clue is collected, when the player presses Tab, then the clue appears in the notebook.
-- Given clues belong to different categories, then the notebook separates map clues, algorithm clues, and AI hints.
+- 開啟對話時，探索移動暫停或限制。
+- UI 顯示 NPC 名稱、立繪、對話文字、玩家輸入框與已取得線索。
+- 離開對話時，玩家位置與關卡狀態不會遺失。
 
-## R9: Atmosphere, Art, And Effects
+## R9：線索筆記本
 
-Priority: Should
+優先級：Should
 
-User story: As a player, I want the game to look and sound like a midnight NTHU horror escape so that the setting feels memorable.
+使用者故事：作為玩家，我希望有筆記本整理線索，方便推理與合作溝通。
 
-Acceptance criteria:
+驗收條件：
 
-- The MVP map includes recognizable Delta/CS building visual cues.
-- Ghost chase includes clear visual or audio feedback.
-- Interaction states have readable UI feedback.
+- 玩家按 Tab 或點擊 UI 可開啟筆記本。
+- 筆記本能區分演算法線索、AI 對話線索、手勢關提示與地圖線索。
+- 新線索被取得時有明確提示。
 
-## R10: Extended Content
+## R10：美術、音效與氣氛
 
-Priority: Could
+優先級：Should
 
-User story: As a returning player, I want optional endings, achievements, and hidden lore so that the game has replay value.
+使用者故事：作為玩家，我希望遊戲看起來像午夜清大恐怖密室，而不是只有功能原型。
 
-Acceptance criteria:
+驗收條件：
 
-- Optional content does not block the main escape route.
-- Optional systems can be disabled without breaking the MVP.
+- MVP 地圖有台達館/資電館的辨識元素。
+- 鬼魂追逐、AC/WA、手勢達成、AI 線索取得都有視覺或音效回饋。
+- UI 在 demo 投影或錄影時仍可讀。
 
+## R11：延伸內容
+
+優先級：Could
+
+使用者故事：作為重玩玩家，我希望有隱藏結局、成就或校園傳說收藏。
+
+驗收條件：
+
+- 延伸內容不阻塞主線三關。
+- 延伸功能可以關閉，不影響 MVP demo。

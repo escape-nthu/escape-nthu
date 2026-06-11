@@ -32,13 +32,13 @@ Author: will cheng
    - LLM 失敗或回覆不穩時，使用 hint tier 與 scripted fallback 保證 demo 可以通關。
 
 6. #40 `[M7] 補齊失敗狀態與重試流程`
-   - 等核心功能有雛形後，再補齊斷線、WA、影像辨識失敗、LLM 失敗等整合流程。
+   - 等核心功能有雛形後，再補齊斷線、WA、手勢辨識失敗、LLM 失敗等整合流程。
    - 後端至少要提供清楚錯誤回應與可讓前端顯示重試 UI 的狀態。
 
 ## MVP 後端邊界
 
 - 技術棧：Node.js + TypeScript，套件管理使用 `pnpm`。
-- HTTP API：處理 health check、房間建立/加入、題目提交、動作關完成回報、AI NPC 對話。
+- HTTP API：處理 health check、房間建立/加入、題目提交、手勢關完成回報、AI NPC 對話。
 - WebSocket：處理雙人房間內的位置、線索、關卡進度與斷線同步。
 - 狀態儲存：MVP 使用 in-memory store，不引入資料庫。
 - Puzzle verifier：用固定 fixtures 驗證答案，回傳 AC/WA。
@@ -49,7 +49,7 @@ Author: will cheng
 - 帳號系統與登入。
 - 永久資料庫與跨天房間保存。
 - 完整 Online Judge 或任意程式碼執行。
-- 影像檔案上傳、保存或後端影像辨識。
+- 影像檔案上傳、保存或後端手勢/影像辨識。
 - 生產等級 matchmaking 與大規模房間管理。
 
 ## 測試重點
