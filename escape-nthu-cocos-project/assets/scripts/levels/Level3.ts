@@ -26,7 +26,7 @@ type RoomStateSnapshot = {
 };
 
 @ccclass
-export default class BalconySquatLevel extends cc.Component {
+export default class Level3 extends cc.Component {
     @property
     apiBaseUrl: string = "http://localhost:8787";
 

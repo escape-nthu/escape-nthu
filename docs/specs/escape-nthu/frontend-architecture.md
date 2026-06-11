@@ -706,11 +706,11 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 ## 陽台同步深蹲關卡
 
-第三關使用 `assets/scripts/levels/BalconySquatLevel.ts` 管理 UI、MediaPipe、深蹲計數與後端同步。
+第三關使用 `assets/scripts/levels/Level3.ts` 管理 UI、MediaPipe、深蹲計數與後端同步。
 
 ### 節點接線
 
-建議在 `UICanvas` 下建立 `BalconySquatLevel` 空節點並掛腳本：
+建議在 `UICanvas` 下建立 `Level3` 空節點並掛腳本：
 
 | 屬性 | 用途 |
 |------|------|
