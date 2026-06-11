@@ -1,0 +1,34 @@
+{
+    "id": "item-keycard",
+    "lines": [
+        {
+            "speaker": "Player A",
+            "text": "這是一張門禁卡...上面寫著「伺服器室」。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/3",
+            "activeSide": "left"
+        },
+        {
+            "speaker": "Player B",
+            "text": "伺服器室！搞不好那裡藏著什麼重要的東西。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/1",
+            "activeSide": "right"
+        },
+        {
+            "speaker": "Player A",
+            "text": "先收好，之後應該會用到。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/3",
+            "activeSide": "left"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "has-keycard" },
+        { "type": "emitEvent", "event": "ui:toast", "data": "獲得門禁卡！" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": []
+    }
+}

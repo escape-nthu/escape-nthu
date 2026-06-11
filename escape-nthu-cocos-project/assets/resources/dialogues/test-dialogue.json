@@ -9,18 +9,18 @@
             "activeSide": "none"
         },
         {
-            "speaker": "教授",
-            "text": "你好，我是教授。這裡最近發生了一些奇怪的事情...",
-            "portraitLeft": null,
+            "speaker": "Player A",
+            "text": "你好，這裡最近發生了一些奇怪的事情...",
+            "portraitLeft": "portraits/playerA/1",
             "portraitRight": null,
             "activeSide": "left"
         },
         {
-            "speaker": "教授",
+            "speaker": "Player B",
             "text": "伺服器室的門被鎖住了，你能幫忙調查嗎？",
-            "portraitLeft": null,
-            "portraitRight": null,
-            "activeSide": "left"
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/4",
+            "activeSide": "right"
         }
     ],
     "onComplete": [

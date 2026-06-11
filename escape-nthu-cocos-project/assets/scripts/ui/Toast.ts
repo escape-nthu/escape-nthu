@@ -14,10 +14,12 @@ export default class Toast extends cc.Component {
     onLoad() {
         this.node.opacity = 0;
         EventBus.on("ui:toast", this.show, this);
+        EventBus.on("ui:interaction-prompt", this.onPrompt, this);
     }
 
     onDestroy() {
         EventBus.off("ui:toast", this.show, this);
+        EventBus.off("ui:interaction-prompt", this.onPrompt, this);
     }
 
     show(message: string) {
@@ -32,5 +34,22 @@ export default class Toast extends cc.Component {
             .delay(this.displayDuration)
             .to(0.3, { opacity: 0 })
             .start();
+    }
+
+    private onPrompt(text: string | null) {
+        if (!this.label) return;
+
+        cc.Tween.stopAllByTarget(this.node);
+
+        if (text) {
+            this.label.string = text;
+            cc.tween(this.node)
+                .to(0.15, { opacity: 255 })
+                .start();
+        } else {
+            cc.tween(this.node)
+                .to(0.15, { opacity: 0 })
+                .start();
+        }
     }
 }
