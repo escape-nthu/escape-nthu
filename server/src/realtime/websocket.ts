@@ -125,6 +125,15 @@ export class RoomGateway {
             payload: { ...event.payload, playerId },
           }, socket);
           return;
+        case "room:transition": {
+          const targetRoomId = assertString(event.payload?.targetRoomId, "targetRoomId");
+          const arrivalDoorId = assertString(event.payload?.arrivalDoorId, "arrivalDoorId");
+          this.broadcast(roomId, {
+            type: "room:transition",
+            payload: { targetRoomId, arrivalDoorId, initiatorId: playerId },
+          });
+          return;
+        }
         default:
           throw new ApiError(400, "UNKNOWN_EVENT", `Unsupported event type: ${(event as { type: string }).type}`);
       }

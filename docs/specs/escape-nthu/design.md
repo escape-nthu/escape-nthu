@@ -12,7 +12,7 @@
 
 | Layer | Choice | Reason |
 | --- | --- | --- |
-| Game frontend | Cocos Creator 3.x, TypeScript | Required by course; TypeScript helps team collaboration. |
+| Game frontend | Cocos Creator 2.4.8, TypeScript | Required by course; TypeScript helps team collaboration. |
 | Backend | Node.js + TypeScript | Same language family as Cocos scripts; easy WebSocket/API integration. |
 | HTTP API | Fastify or Express | Lightweight route handling for AI and puzzle verification. |
 | Realtime | WebSocket (`ws` or Socket.IO) | Room state sync for two players. |
@@ -35,29 +35,34 @@ flowchart LR
 
 ## Frontend Structure
 
-Suggested Cocos project layout:
+Cocos project layout (Cocos Creator 2.4.8, scene files use `.fire`):
 
 ```text
 assets/
   scenes/
-    Boot.scene
-    Lobby.scene
-    Game.scene
-    Result.scene
+    Boot.fire
+    Lobby.fire
+    Game.fire
+    Result.fire
   scripts/
     core/
+      GameManager.ts
       GameState.ts
       EventBus.ts
       Config.ts
     player/
       PlayerController.ts
       PlayerAnimator.ts
-      PlayerNetworkGhost.ts
+      CameraFollow.ts
+      RemotePlayer.ts
     map/
+      RoomRegistry.ts
+      RoomManager.ts
+      RoomController.ts
+      DoorTrigger.ts
       Interactable.ts
-      DoorLock.ts
-      SafeZone.ts
       ClueObject.ts
+      SafeZone.ts
     ghost/
       GhostController.ts
       PatrolPath.ts
@@ -77,10 +82,15 @@ assets/
       NotebookPanel.ts
       Toast.ts
       LoadingOverlay.ts
+  resources/
+    prefabs/
+      rooms/            # Room prefabs loaded at runtime via cc.resources.load
+      player/
   art/
   audio/
-  prefabs/
 ```
+
+For details on the Game scene node hierarchy, collision system, and room management, see [frontend-architecture.md](./frontend-architecture.md).
 
 ## Cocos Scenes
 
