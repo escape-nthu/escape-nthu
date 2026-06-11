@@ -30,4 +30,29 @@ describe("InMemoryRoomStore", () => {
 
     expect(state.escaped).toBe(true);
   });
+
+  it("requires two ready players inside the gesture sync window", () => {
+    const store = new InMemoryRoomStore();
+    const created = store.createRoom("A");
+    const joined = store.joinRoom(created.roomId, "B");
+
+    store.updateGestureProgress(created.roomId, created.player.playerId, 5, 0.9);
+    store.updateGestureProgress(created.roomId, joined.player.playerId, 5, 0.88);
+    const firstReady = store.markGestureReady(
+      created.roomId,
+      created.player.playerId,
+      0.91,
+      new Date("2026-06-12T12:00:00.000Z"),
+    );
+    const secondReady = store.markGestureReady(
+      created.roomId,
+      joined.player.playerId,
+      0.89,
+      new Date("2026-06-12T12:00:02.000Z"),
+    );
+
+    expect(firstReady.completedLevels).not.toContain("level-03");
+    expect(secondReady.completedLevels).toContain("level-03");
+    expect(secondReady.gestureChallenge.completed).toBe(true);
+  });
 });

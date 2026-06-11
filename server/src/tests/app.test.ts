@@ -51,7 +51,7 @@ describe("HTTP API", () => {
     await app.close();
   });
 
-  it("uses scripted dialogue fallback and can complete level 03", async () => {
+  it("uses scripted dialogue fallback and can complete level 02", async () => {
     const app = await buildApp({ config: testConfig, logger: false });
     const created = (await app.inject({ method: "POST", url: "/api/rooms" })).json();
 
@@ -69,8 +69,50 @@ describe("HTTP API", () => {
 
     const body = response.json();
     expect(body.source).toBe("fallback");
-    expect(body.completedLevelId).toBe("level-03");
+    expect(body.completedLevelId).toBe("level-02");
     expect(body.revealedClueIds).toContain("ai-ta-override-note");
+
+    await app.close();
+  });
+
+  it("tracks gesture progress and completes level 03 when both players sync ready", async () => {
+    const app = await buildApp({ config: testConfig, logger: false });
+    const created = (await app.inject({ method: "POST", url: "/api/rooms" })).json();
+    const joined = (
+      await app.inject({
+        method: "POST",
+        url: `/api/rooms/${created.roomId}/join`,
+        payload: { preferredRole: "B" },
+      })
+    ).json();
+
+    await app.inject({
+      method: "POST",
+      url: "/api/levels/gesture/progress",
+      payload: { roomId: created.roomId, playerId: created.playerId, count: 5, confidence: 0.86 },
+    });
+    await app.inject({
+      method: "POST",
+      url: "/api/levels/gesture/progress",
+      payload: { roomId: created.roomId, playerId: joined.playerId, count: 5, confidence: 0.84 },
+    });
+
+    const firstReady = await app.inject({
+      method: "POST",
+      url: "/api/levels/gesture/ready",
+      payload: { roomId: created.roomId, playerId: created.playerId, confidence: 0.91 },
+    });
+    const secondReady = await app.inject({
+      method: "POST",
+      url: "/api/levels/gesture/ready",
+      payload: { roomId: created.roomId, playerId: joined.playerId, confidence: 0.89 },
+    });
+    const room = await app.inject({ method: "GET", url: `/api/rooms/${created.roomId}` });
+
+    expect(firstReady.json().completedLevelId).toBeUndefined();
+    expect(secondReady.json().completedLevelId).toBe("level-03");
+    expect(room.json().completedLevels).toContain("level-03");
+    expect(room.json().gestureChallenge.completed).toBe(true);
 
     await app.close();
   });

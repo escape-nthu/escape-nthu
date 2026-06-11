@@ -25,7 +25,7 @@ export async function registerDialogueRoutes(app: FastifyInstance, deps: Dialogu
     const turn = deps.store.nextDialogueTurn(roomId, npcId);
     const npcReply = await deps.npcService.reply({ npcId, message, visibleClueIds, turn });
 
-    let completedLevelId: "level-03" | undefined;
+    let completedLevelId: "level-02" | undefined;
     let state = deps.store.snapshot(roomId);
 
     for (const clueId of npcReply.revealedClueIds) {
@@ -33,11 +33,11 @@ export async function registerDialogueRoutes(app: FastifyInstance, deps: Dialogu
     }
 
     if (npcReply.shouldCompleteLevel) {
-      state = deps.store.completeLevel(roomId, playerId, "level-03");
-      completedLevelId = "level-03";
+      state = deps.store.completeLevel(roomId, playerId, "level-02");
+      completedLevelId = "level-02";
       deps.gateway.broadcast(roomId, {
         type: "level:completed",
-        payload: { playerId, levelId: "level-03", state },
+        payload: { playerId, levelId: "level-02", state },
       });
     } else if (npcReply.revealedClueIds.length > 0) {
       deps.gateway.broadcast(roomId, {

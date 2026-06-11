@@ -1,6 +1,14 @@
 import { randomUUID } from "node:crypto";
 import { ApiError } from "../errors";
-import type { LevelId, PlayerRole, PlayerState, RoomStateSnapshot, Vector2 } from "../types";
+import type {
+  GestureChallengeSnapshot,
+  GesturePlayerProgress,
+  LevelId,
+  PlayerRole,
+  PlayerState,
+  RoomStateSnapshot,
+  Vector2,
+} from "../types";
 
 type Room = {
   roomId: string;
@@ -13,6 +21,12 @@ type Room = {
   motionChallenge: {
     targetCount: number;
     bestCount: number;
+    completed: boolean;
+  };
+  gestureChallenge: {
+    targetCount: number;
+    syncWindowMs: number;
+    players: Map<string, GesturePlayerProgress>;
     completed: boolean;
   };
   dialogueTurns: Map<string, number>;
@@ -37,6 +51,12 @@ export class InMemoryRoomStore {
       motionChallenge: {
         targetCount: 10,
         bestCount: 0,
+        completed: false,
+      },
+      gestureChallenge: {
+        targetCount: 5,
+        syncWindowMs: 3000,
+        players: new Map(),
         completed: false,
       },
       dialogueTurns: new Map(),
@@ -115,13 +135,42 @@ export class InMemoryRoomStore {
   }
 
   completeMotion(roomId: string, playerId: string, count: number): RoomStateSnapshot {
+    const state = this.updateGestureProgress(roomId, playerId, count, 1);
+    const room = this.requireRoom(roomId);
+    room.motionChallenge.bestCount = Math.max(room.motionChallenge.bestCount, count);
+    if (state.gestureChallenge.completed) {
+      room.motionChallenge.completed = true;
+    }
+    this.touch(room);
+    return this.snapshot(roomId);
+  }
+
+  updateGestureProgress(roomId: string, playerId: string, count: number, confidence: number): RoomStateSnapshot {
     const room = this.requireRoom(roomId);
     this.getPlayer(roomId, playerId);
-    room.motionChallenge.bestCount = Math.max(room.motionChallenge.bestCount, count);
-    if (count >= room.motionChallenge.targetCount) {
-      room.motionChallenge.completed = true;
-      room.completedLevels.add("level-02");
-    }
+    const previous = room.gestureChallenge.players.get(playerId);
+    const nextCount = Math.max(previous?.count ?? 0, Math.floor(count));
+    room.gestureChallenge.players.set(playerId, {
+      count: nextCount,
+      confidence,
+      readyAt: previous?.readyAt,
+    });
+    this.touch(room);
+    return this.snapshot(roomId);
+  }
+
+  markGestureReady(roomId: string, playerId: string, confidence: number, readyAt = new Date()): RoomStateSnapshot {
+    const room = this.requireRoom(roomId);
+    this.getPlayer(roomId, playerId);
+
+    const previous = room.gestureChallenge.players.get(playerId);
+    room.gestureChallenge.players.set(playerId, {
+      count: previous?.count ?? 0,
+      confidence,
+      readyAt: readyAt.toISOString(),
+    });
+
+    this.resolveGestureCompletion(room, readyAt);
     this.touch(room);
     return this.snapshot(roomId);
   }
@@ -146,6 +195,7 @@ export class InMemoryRoomStore {
       collectedClues: [...room.collectedClues].sort(),
       puzzleAttempts: Object.fromEntries([...room.puzzleAttempts.entries()].sort(([a], [b]) => a.localeCompare(b))),
       motionChallenge: { ...room.motionChallenge },
+      gestureChallenge: this.snapshotGestureChallenge(room),
       escaped: ALL_LEVELS.every((levelId) => room.completedLevels.has(levelId)),
     };
   }
@@ -197,5 +247,66 @@ export class InMemoryRoomStore {
 
   private touch(room: Room): void {
     room.updatedAt = new Date().toISOString();
+  }
+
+  private resolveGestureCompletion(room: Room, now: Date): void {
+    if (room.gestureChallenge.completed) {
+      return;
+    }
+
+    const activePlayers = [...room.players.keys()];
+    if (activePlayers.length < 2) {
+      return;
+    }
+
+    const readyPlayers = activePlayers
+      .map((playerId) => room.gestureChallenge.players.get(playerId))
+      .filter((progress): progress is GesturePlayerProgress => {
+        if (!progress || !progress.readyAt) {
+          return false;
+        }
+        return progress.count >= room.gestureChallenge.targetCount;
+      });
+
+    if (readyPlayers.length < 2) {
+      return;
+    }
+
+    const readyTimes = readyPlayers.map((progress) => Date.parse(progress.readyAt ?? ""));
+    const validTimes = readyTimes.filter((time) => Number.isFinite(time));
+    if (validTimes.length < 2) {
+      return;
+    }
+
+    const earliest = Math.min(...validTimes);
+    const latest = Math.max(...validTimes);
+    if (latest - earliest <= room.gestureChallenge.syncWindowMs) {
+      room.gestureChallenge.completed = true;
+      room.motionChallenge.completed = true;
+      room.completedLevels.add("level-03");
+      return;
+    }
+
+    for (const playerId of activePlayers) {
+      const progress = room.gestureChallenge.players.get(playerId);
+      if (!progress?.readyAt) continue;
+      if (now.getTime() - Date.parse(progress.readyAt) > room.gestureChallenge.syncWindowMs) {
+        room.gestureChallenge.players.set(playerId, {
+          count: progress.count,
+          confidence: progress.confidence,
+        });
+      }
+    }
+  }
+
+  private snapshotGestureChallenge(room: Room): GestureChallengeSnapshot {
+    return {
+      targetCount: room.gestureChallenge.targetCount,
+      syncWindowMs: room.gestureChallenge.syncWindowMs,
+      players: Object.fromEntries(
+        [...room.gestureChallenge.players.entries()].sort(([a], [b]) => a.localeCompare(b)),
+      ),
+      completed: room.gestureChallenge.completed,
+    };
   }
 }

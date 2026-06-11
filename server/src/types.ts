@@ -17,6 +17,19 @@ export type PlayerState = {
   position?: Vector2;
 };
 
+export type GesturePlayerProgress = {
+  count: number;
+  confidence: number;
+  readyAt?: string;
+};
+
+export type GestureChallengeSnapshot = {
+  targetCount: number;
+  syncWindowMs: number;
+  players: Record<string, GesturePlayerProgress>;
+  completed: boolean;
+};
+
 export type RoomStateSnapshot = {
   roomId: string;
   createdAt: string;
@@ -30,6 +43,7 @@ export type RoomStateSnapshot = {
     bestCount: number;
     completed: boolean;
   };
+  gestureChallenge: GestureChallengeSnapshot;
   escaped: boolean;
 };
 
