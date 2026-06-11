@@ -232,16 +232,15 @@ server/
 }
 ```
 
-### 回報手勢關卡完成
+### 回報手勢關卡進度
 
-`POST /api/levels/gesture/complete`
+`POST /api/levels/gesture/progress`
 
 ```json
 {
   "roomId": "ABCD",
   "playerId": "p_456",
-  "gestureType": "raised-hand",
-  "syncToken": "balcony-03",
+  "count": 5,
   "confidence": 0.82
 }
 ```
@@ -250,8 +249,33 @@ server/
 
 ```json
 {
-  "completedLevelId": "level-02",
-  "accepted": true
+  "accepted": true,
+  "targetCount": 5,
+  "playerProgress": {
+    "count": 5,
+    "confidence": 0.82
+  }
+}
+```
+
+### 回報手勢關卡同步 ready
+
+`POST /api/levels/gesture/ready`
+
+```json
+{
+  "roomId": "ABCD",
+  "playerId": "p_456",
+  "confidence": 0.9
+}
+```
+
+兩位玩家都達到 5 次深蹲，且 ready 時間差在 3 秒內時完成第三關：
+
+```json
+{
+  "accepted": true,
+  "completedLevelId": "level-03"
 }
 ```
 
@@ -301,7 +325,12 @@ type RoomState = {
   completedLevels: string[];
   npcHintTiers: Record<string, number>;
   puzzleAttempts: Record<string, number>;
-  gestureProgress: Record<string, number>;
+  gestureChallenge: {
+    targetCount: number;
+    syncWindowMs: number;
+    players: Record<string, { count: number; confidence: number; readyAt?: string }>;
+    completed: boolean;
+  };
   ghostState: GhostState;
   phase: "lobby" | "playing" | "escaped" | "failed";
 };
@@ -323,11 +352,12 @@ Root
 
 ## 手勢辨識設計
 
-- 使用瀏覽器攝影機輸入，只在前端做手勢或姿態辨識，避免傳送影像到後端。
-- 先支援陽台關卡需要的一種指定手勢或同步條件。
-- 判定邏輯以手部、手腕、肩膀或姿態關鍵點變化作簡化判定。
-- 後端只接收完成結果、同步 token 與信心分數，不保存影像。
-- Demo fallback：若攝影機或模型失敗，提供測試模式讓隊友手動觸發完成。
+- 使用瀏覽器攝影機輸入，只在前端做姿態辨識，避免傳送影像到後端。
+- MVP 使用 MediaPipe Pose CDN 快速整合；Cocos 透過 adapter 取得 normalized landmarks，不直接 import MediaPipe ESM。
+- 指定動作為深蹲：以髖、膝、踝關鍵點做 standing / down 狀態機計數。
+- 每位玩家完成 5 次後，兩人需在 3 秒內同步蹲下 ready，後端完成 `level-03`。
+- 後端只接收 count、readyAt 與 confidence，不保存影像。
+- Demo fallback：若攝影機或模型失敗，或 URL 帶 `?debugGesture=1`，顯示手動 +1 / Ready / Complete 控制。
 
 ## LLM / Prompt Injection 關卡設計
 

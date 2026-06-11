@@ -704,6 +704,36 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 ---
 
+## 陽台同步深蹲關卡
+
+第三關使用 `assets/scripts/levels/BalconySquatLevel.ts` 管理 UI、MediaPipe、深蹲計數與後端同步。
+
+### 節點接線
+
+建議在 `UICanvas` 下建立 `BalconySquatLevel` 空節點並掛腳本：
+
+| 屬性 | 用途 |
+|------|------|
+| `Api Base Url` | 後端 URL，預設 `http://localhost:8787` |
+| `Room Id` / `Player Id` | 可由 Lobby 寫入 `localStorage`，或 demo 時在 Inspector 填入 |
+| `Final Door Id` | 完成後呼叫 `GameState.unlockDoor()` 的門 ID，預設 `final-exit-door` |
+| `Panel Root` | 第三關面板根節點 |
+| `Status/Count/Peer/Sync Label` | 顯示偵測狀態、個人次數、隊友次數與同步提示 |
+| `Start/Close Button` | 開始與關閉關卡 |
+| `Fallback Controls` | debug/failure 時顯示的手動 +1 / Ready / Complete 控制 |
+
+房間內的陽台互動物件可掛 `GestureLevelTrigger`，玩家按 E 後 emit `gesture-level:start` 開啟面板。
+
+### MediaPipe 與 fallback
+
+- `MediaPipePoseAdapter` 透過 CDN module script 載入 `@mediapipe/tasks-vision`，避免 Cocos 2.4 直接 import ESM。
+- webcam 預覽與骨架點使用 DOM overlay 疊在 Cocos canvas 右上角，關卡關閉時會清除。
+- `SquatDetector` 只吃 normalized landmarks，使用髖、膝、踝做 standing/down 狀態機。
+- URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 fallback controls，確保 demo 可以完成。
+- 完成條件：每位玩家 5 次深蹲後，兩人 3 秒內同步蹲下 ready；後端完成 `level-03` 後解鎖逃生門。
+
+---
+
 ## UI 系統
 
 UI 節點放在 UICanvas 下，使用雙 Camera 架構（見上方）。**重要：UICanvas 和底下所有子節點的 group 都必須設為 `ui`**，否則會被 GameCamera 渲染（跟著玩家移動）。
