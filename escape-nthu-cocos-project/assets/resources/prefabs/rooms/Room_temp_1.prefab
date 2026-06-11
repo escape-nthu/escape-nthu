@@ -1086,7 +1086,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "test_interactable_01",
+    "_name": "ClueDocument_test",
     "_objFlags": 0,
     "_parent": {
       "__id__": 30
@@ -1215,11 +1215,13 @@
       "__id__": 31
     },
     "_enabled": true,
-    "interactableId": "test_interactable_01",
-    "promptText": "Press E to interact",
-    "clueId": "0",
-    "clueText": "測試線索內容",
-    "clueCategory": "general",
+    "interactableId": "document-01",
+    "promptText": "按E撿起文件",
+    "reusable": false,
+    "clueId": "document-01",
+    "clueText": "異常電磁讀數的實驗報告",
+    "clueCategory": "資訊",
+    "dialogueId": "item-document",
     "_id": ""
   },
   {

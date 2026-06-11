@@ -1,0 +1,34 @@
+{
+    "id": "room2-intro",
+    "lines": [
+        {
+            "speaker": "Player B",
+            "text": "這裡是...實驗室？看起來很久沒人來過了。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/1",
+            "activeSide": "right"
+        },
+        {
+            "speaker": "Player A",
+            "text": "小心一點，桌上的東西看起來還有使用過的痕跡。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/3",
+            "activeSide": "left"
+        },
+        {
+            "speaker": "Player B",
+            "text": "也許能在這裡找到一些線索，分頭找找吧！",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/2",
+            "activeSide": "right"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "room2-intro-seen" },
+        { "type": "emitEvent", "event": "ui:toast", "data": "開始探索實驗室吧！" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": ["room2-intro-seen"]
+    }
+}

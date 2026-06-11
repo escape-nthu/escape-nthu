@@ -11,15 +11,26 @@ export default class Interactable extends cc.Component {
     @property
     promptText: string = "Press E to interact";
 
+    @property({ tooltip: "允許重複互動，取消勾選則互動完成後銷毀節點" })
+    reusable: boolean = true;
+
     protected playerInRange: boolean = false;
+    private dialoguePlaying: boolean = false;
 
     onLoad() {
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
+        EventBus.on("dialogue:start", this.onDialogueStart, this);
+        EventBus.on("dialogue:end", this.onDialogueEnd, this);
     }
 
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
+        EventBus.off("dialogue:start", this.onDialogueStart, this);
+        EventBus.off("dialogue:end", this.onDialogueEnd, this);
     }
+
+    private onDialogueStart() { this.dialoguePlaying = true; }
+    private onDialogueEnd() { this.dialoguePlaying = false; }
 
     onCollisionEnter(other: cc.Collider, _self: cc.Collider) {
         if (other.node.group !== "player") return;
@@ -34,8 +45,13 @@ export default class Interactable extends cc.Component {
     }
 
     private onKeyDown(event: cc.Event.EventKeyboard) {
+        if (this.dialoguePlaying) return;
         if (event.keyCode === cc.macro.KEY.e && this.playerInRange) {
             this.onInteract();
+            if (!this.reusable) {
+                EventBus.emit("ui:interaction-prompt", null);
+                this.node.destroy();
+            }
         }
     }
 

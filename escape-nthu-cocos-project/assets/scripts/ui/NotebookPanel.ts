@@ -16,11 +16,14 @@ export default class NotebookPanel extends cc.Component {
     toggleButton: cc.Node = null;
 
     private isOpen: boolean = false;
+    private dialogueLocked: boolean = false;
 
     onLoad() {
         this.node.active = false;
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         EventBus.on("clue:collected", this.onClueCollected, this);
+        EventBus.on("dialogue:start", this.onDialogueStart, this);
+        EventBus.on("dialogue:end", this.onDialogueEnd, this);
 
         if (this.toggleButton) {
             this.toggleButton.on("click", this.toggle, this);
@@ -30,10 +33,24 @@ export default class NotebookPanel extends cc.Component {
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         EventBus.off("clue:collected", this.onClueCollected, this);
+        EventBus.off("dialogue:start", this.onDialogueStart, this);
+        EventBus.off("dialogue:end", this.onDialogueEnd, this);
 
         if (this.toggleButton) {
             this.toggleButton.off("click", this.toggle, this);
         }
+    }
+
+    private onDialogueStart() {
+        this.dialogueLocked = true;
+        if (this.isOpen) {
+            this.isOpen = false;
+            this.node.active = false;
+        }
+    }
+
+    private onDialogueEnd() {
+        this.dialogueLocked = false;
     }
 
     private onKeyDown(event: cc.Event.EventKeyboard) {
@@ -44,6 +61,7 @@ export default class NotebookPanel extends cc.Component {
     }
 
     toggle() {
+        if (this.dialogueLocked) return;
         this.isOpen = !this.isOpen;
         this.node.active = this.isOpen;
         if (this.isOpen) {

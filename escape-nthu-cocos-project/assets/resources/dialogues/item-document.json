@@ -1,0 +1,41 @@
+{
+    "id": "item-document",
+    "lines": [
+        {
+            "speaker": "Player A",
+            "text": "一份實驗報告...內容提到了某個異常的電磁讀數。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": null,
+            "activeSide": "left"
+        },
+        {
+            "speaker": "Player B",
+            "text": "讓我看看...日期是上個月的，有人一直在秘密進行實驗？",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/4",
+            "activeSide": "right"
+        },
+        {
+            "speaker": "Player A",
+            "text": "而且這個數據明顯超標了，難怪要藏起來。",
+            "portraitLeft": "portraits/playerA/4",
+            "portraitRight": "portraits/playerB/4",
+            "activeSide": "left"
+        },
+        {
+            "speaker": "Player B",
+            "text": "...這跟失蹤事件不會有關吧？先記下來。",
+            "portraitLeft": "portraits/playerA/4",
+            "portraitRight": "portraits/playerB/5",
+            "activeSide": "right"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "has-document" },
+        { "type": "emitEvent", "event": "ui:toast", "data": "記錄了實驗報告的內容。" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": []
+    }
+}

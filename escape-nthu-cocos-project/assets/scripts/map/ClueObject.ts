@@ -1,6 +1,7 @@
 import Interactable from "./Interactable";
 import GameState from "../core/GameState";
 import EventBus from "../core/EventBus";
+import DialogueManager from "../dialogue/DialogueManager";
 
 const { ccclass, property } = cc._decorator;
 
@@ -15,6 +16,9 @@ export default class ClueObject extends Interactable {
 
     @property
     clueCategory: string = "general";
+
+    @property({ tooltip: "撿起後觸發的對話 ID（留空 = 不觸發對話）" })
+    dialogueId: string = "";
 
     private collected: boolean = false;
 
@@ -43,9 +47,15 @@ export default class ClueObject extends Interactable {
             category: this.clueCategory,
         });
 
-        // Visual feedback: fade out the clue object
         cc.tween(this.node)
             .to(0.3, { opacity: 80 })
             .start();
+
+        if (this.dialogueId) {
+            const mgr = DialogueManager.instance;
+            if (mgr && !mgr.isPlaying()) {
+                mgr.play(this.dialogueId);
+            }
+        }
     }
 }
