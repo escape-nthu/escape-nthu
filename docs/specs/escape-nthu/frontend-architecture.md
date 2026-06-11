@@ -12,10 +12,12 @@
 2. [雙 Camera 架構](#雙-camera-架構)
 3. [碰撞系統](#碰撞系統)
 4. [玩家移動](#玩家移動)
-5. [房間製作方式](#房間製作方式)
-6. [房間管理與切換](#房間管理與切換)
-7. [地圖格局設計指南](#地圖格局設計指南)
-8. [互動物件](#互動物件)
+5. [相機跟隨](#相機跟隨)
+6. [房間製作方式](#房間製作方式)
+7. [房間管理與切換](#房間管理與切換)
+8. [地圖格局設計指南](#地圖格局設計指南)
+9. [互動物件與線索系統](#互動物件與線索系統)
+10. [UI 系統](#ui-系統)
 
 ---
 
@@ -130,6 +132,23 @@ onCollisionStay(other, self)
 
 ---
 
+## 相機跟隨
+
+`CameraFollow` 掛在 GameCamera 節點上，每幀平滑跟隨玩家位置。
+
+```
+lateUpdate(dt)
+  ├── target 為 null → 不動
+  ├── needsSnap = true（換房間或首次進入）→ 直接跳到玩家位置
+  └── 正常情況 → 指數平滑插值跟隨（smoothSpeed 控制速度）
+```
+
+**換房間時的行為**：收到 `room:changed` 事件後設定 `needsSnap = true`，下一幀相機直接跳到玩家位置，避免從舊位置慢慢滑過去造成畫面晃動。
+
+目前不做房間邊界限制，相機始終對準玩家中心。
+
+---
+
 ## 房間製作方式
 
 每個房間直接在 Cocos Creator 編輯器中繪製，不使用 Tiled / TMX。
@@ -164,12 +183,12 @@ RoomRoot                           掛 RoomController（設定 roomWidth / roomH
 5. 不需要 Sprite（牆壁視覺由 Background 處理），但開發時可加半透明色塊輔助對位
 
 **門節點（Doors 下）：**
-1. 建立空節點，命名必須與 `RoomRegistry.ts` 中的 `doorId` 一致（如 `door-to-2f`）
+1. 建立空節點，命名必須與 `RoomRegistry.ts` 中的 `doorId` 一致（如 `door_1a`）
 2. Group 設為 `door`
 3. 加入 `cc.BoxCollider`，size 設為門口大小（如 `64 × 48`）
 4. 加入 `DoorTrigger` 腳本
    - `Door Id` 填入與節點同名的 doorId
-   - `Spawn Point` 設為進入此門時玩家應出現的座標（相對於房間原點）
+   - `Spawn Offset X / Y` 設為玩家進入此門後相對於門的偏移量（預設 Y = -50，表示出現在門下方 50px）
 
 **互動物件（Interactables 下）：**
 1. 建立空節點
@@ -234,9 +253,13 @@ RoomManager.enterRoom(targetRoomId, arrivalDoorId)
     │      沒有 → cc.resources.load(prefabPath) → cc.instantiate → 加入場景
     │      有   → node.active = true（零載入時間，狀態照舊）
     │
-    ├── ③ 把 Player 移動到目標門的 spawnPoint 位置
+    ├── ③ 定位玩家（依優先順序）：
+    │      a. arrivalDoorId 不為 null → 找到門的 DoorTrigger → 用 spawnOffset 定位
+    │      b. 房間有名為 "SpawnPoint" 的子節點 → 用該節點座標
+    │      c. 房間有 RoomController → 用 (roomWidth/2, roomHeight/2) 房間中心
+    │      d. 都沒有 → (0, 0)
     │
-    └── ④ EventBus.emit("room:changed") → CameraFollow 更新房間邊界
+    └── ④ EventBus.emit("room:changed") → CameraFollow 瞬間跳到玩家位置
 ```
 
 ### 為什麼不用一個房間一個 Scene？
@@ -269,22 +292,13 @@ Client A 觸碰門
 
 把整個大地圖想成一張圖（graph）：節點 = 房間，邊 = 門。
 
+目前測試用的兩個房間：
+
 ```
-                    ┌──────────────────┐
-                    │ delta-2f-hallway │
-                    └───────┬──────────┘
-                     door-from-1f / door-to-server
-                            │                    \
-                    door-to-2f                 door-from-2f
-                            │                      \
-┌──────────────────┐        │         ┌──────────────────┐
-│  delta-lab-301   │◄───────┤         │  cs-server-room  │
-└──────────────────┘        │         └──────────────────┘
-  door-from-hallway  door-to-lab
-                            │
-                    ┌───────┴──────────┐
-                    │ delta-1f-hallway │  ← 初始房間
-                    └──────────────────┘
+┌──────────────┐    door_1a / door_1b    ┌──────────────┐
+│  Room_temp_1 │◄───────────────────────►│  Room_temp_2 │
+│  （初始房間） │                          │              │
+└──────────────┘                          └──────────────┘
 ```
 
 先決定：
@@ -316,14 +330,23 @@ Client A 觸碰門
 每個房間加入 `ROOM_REGISTRY`，門的連接必須**雙向定義**：
 
 ```typescript
-// 如果 A 的 door-x 連到 B 的 door-y，
-// 那 B 的 door-y 也要連回 A 的 door-x
+// 如果 A 的 door_1a 連到 B 的 door_1b，
+// 那 B 的 door_1b 也要連回 A 的 door_1a
 
-["room-a", {
-    doors: [{ doorId: "door-x", connectsTo: { roomId: "room-b", doorId: "door-y" } }]
+["Room_temp_1", {
+    roomId: "Room_temp_1",
+    prefabPath: "prefabs/rooms/Room_temp_1",
+    initialRoom: true,
+    doors: [
+        { doorId: "door_1a", connectsTo: { roomId: "Room_temp_2", doorId: "door_1b" } }
+    ],
 }],
-["room-b", {
-    doors: [{ doorId: "door-y", connectsTo: { roomId: "room-a", doorId: "door-x" } }]
+["Room_temp_2", {
+    roomId: "Room_temp_2",
+    prefabPath: "prefabs/rooms/Room_temp_2",
+    doors: [
+        { doorId: "door_1b", connectsTo: { roomId: "Room_temp_1", doorId: "door_1a" } }
+    ],
 }],
 ```
 
@@ -331,16 +354,17 @@ Client A 觸碰門
 
 - [ ] 在編輯器中建好房間節點樹（Background, Walls, Doors, Interactables）
 - [ ] RoomRoot 掛 RoomController，設定正確的 roomWidth / roomHeight
+- [ ] 初始房間的 RoomRoot 下加一個空節點命名為 `SpawnPoint`，放在玩家出生位置
 - [ ] 牆壁節點的 group = "wall"，BoxCollider size 覆蓋牆壁
 - [ ] 門節點的 group = "door"，DoorTrigger 的 doorId 與 Registry 一致
-- [ ] 門節點的 DoorTrigger.spawnPoint 設定正確（玩家進門後出現的位置）
+- [ ] 門節點的 DoorTrigger.spawnOffsetX/Y 設定正確（玩家進門後相對門的偏移）
 - [ ] 存成 Prefab 到 `resources/prefabs/rooms/`，路徑吻合 Registry 的 prefabPath
 - [ ] 在 `RoomRegistry.ts` 加入房間定義和雙向門連接
 - [ ] Preview 測試：能走進門並正確切換
 
 ---
 
-## 互動物件
+## 互動物件與線索系統
 
 ### 基底元件：Interactable
 
@@ -352,14 +376,55 @@ Client A 觸碰門
 
 ### 線索物件：ClueObject
 
-繼承 Interactable，互動時：
-1. 呼叫 `GameState.collectClue(clueId)`
-2. 發出 `"ui:show-clue"` 事件（NotebookPanel 接收並記錄）
+繼承 Interactable。在編輯器 Inspector 中填寫三個欄位：
+
+| 欄位 | 說明 | 範例 |
+|------|------|------|
+| `Clue Id` | 唯一識別碼 | `graph-note-01` |
+| `Clue Text` | 線索內容文字 | `這張圖沒有負權重…` |
+| `Clue Category` | 分類標籤 | `puzzle-hint` |
+
+互動時：
+1. 呼叫 `GameState.collectClue({ clueId, text, category })` — 完整資料存入 GameState
+2. 發出 `"ui:show-clue"` 事件（可用於即時顯示提示）
 3. 物件淡出（opacity 降低），表示已撿取
+
+### 線索資料流
+
+```
+ClueObject (Inspector 填資料)
+    │ 玩家按 E 互動
+    ▼
+GameState.collectClue({ clueId, text, category })
+    │ 存入 Map<string, ClueEntry>
+    │ 發出 "clue:collected" 事件
+    ▼
+NotebookPanel.refreshDisplay()
+    │ 從 GameState.getAllClues() 讀取所有已收集線索
+    ▼
+顯示 [category] text 列表
+```
+
+`GameState` 是唯一的資料來源（single source of truth）。NotebookPanel 不自己存資料，每次開啟時都從 GameState 讀取。
+
+---
+
+## UI 系統
+
+UI 節點放在 UICanvas 下，使用雙 Camera 架構（見上方）。**重要：UICanvas 和底下所有子節點的 group 都必須設為 `ui`**，否則會被 GameCamera 渲染（跟著玩家移動）。
+
+### NotebookPanel（線索筆記本）
+
+開啟方式（兩種）：
+- **Tab 鍵**
+- **UI 按鈕**：在 Inspector 的 `Toggle Button` 欄位拖入一個有 `cc.Button` 的節點（此按鈕必須放在 NotebookPanel 節點外面，因為 Panel 關閉時 `active = false` 會隱藏所有子節點）
+
+開啟時從 `GameState.getAllClues()` 讀取並顯示所有已收集線索。
 
 ### Toast 提示
 
-畫面下方短暫顯示一行文字（2 秒後自動消失）。用途：
-- 走到鎖住的門 → 「這扇門被鎖住了」
-- 撿到線索 → 「獲得線索：圖論筆記」
+短暫顯示一行文字（預設 2 秒後自動消失）。透過 `EventBus.emit("ui:toast", message)` 觸發。
+
+用途：
+- 走到鎖住的門 → 「This door is locked.」
 - 任何需要即時回饋但不值得開面板的場合

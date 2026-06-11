@@ -15,8 +15,6 @@ export default class RoomManager extends cc.Component {
 
     private loadedRooms: Map<string, cc.Node> = new Map();
     private currentRoomId: string = "";
-    /** 玩家剛從這扇門進來，在離開碰撞範圍前不再觸發 */
-    arrivalDoorId: string | null = null;
 
     onLoad() {
         RoomManager.instance = this;
@@ -71,8 +69,6 @@ export default class RoomManager extends cc.Component {
         this.currentRoomId = targetRoomId;
 
         this.positionPlayerAtDoor(target, arrivalDoorId);
-        this.arrivalDoorId = arrivalDoorId;
-
         EventBus.emit("room:changed", targetRoomId);
     }
 

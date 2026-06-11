@@ -12,17 +12,28 @@ export default class NotebookPanel extends cc.Component {
     @property(cc.Prefab)
     clueEntryPrefab: cc.Prefab = null;
 
+    @property({ type: cc.Node, tooltip: "放在 Panel 外面的開關按鈕，需要有 cc.Button" })
+    toggleButton: cc.Node = null;
+
     private isOpen: boolean = false;
 
     onLoad() {
         this.node.active = false;
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         EventBus.on("clue:collected", this.onClueCollected, this);
+
+        if (this.toggleButton) {
+            this.toggleButton.on("click", this.toggle, this);
+        }
     }
 
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         EventBus.off("clue:collected", this.onClueCollected, this);
+
+        if (this.toggleButton) {
+            this.toggleButton.off("click", this.toggle, this);
+        }
     }
 
     private onKeyDown(event: cc.Event.EventKeyboard) {
