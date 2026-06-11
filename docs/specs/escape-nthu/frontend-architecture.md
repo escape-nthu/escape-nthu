@@ -371,26 +371,85 @@ Client A 觸碰門
 
 ### 基底元件：Interactable
 
-掛在帶 `cc.BoxCollider`（group = "interactable"）的節點上。行為：
+掛在帶 `cc.BoxCollider`（group = "interactable"）的節點上。所有可互動物件（ClueObject、DialogueInteractable 等）都繼承此類。
 
-1. 玩家進入碰撞範圍 → 畫面顯示提示文字（「按 E 互動」）
-2. 玩家按 E 鍵 → 觸發 `onInteract()`（子類覆寫）
-3. 玩家離開範圍 → 提示消失
+#### Inspector 屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `Interactable Id` | string | 唯一識別碼（非必填，供通用事件使用） |
+| `Prompt Text` | string | 靠近時顯示的提示文字，預設 `"Press E to interact"` |
+| `Reusable` | boolean | 勾選 = 可重複互動（預設）；取消勾選 = 互動完成後銷毀節點 |
+
+#### 行為流程
+
+```
+玩家進入碰撞範圍
+    │
+    ▼
+Toast 常駐顯示 promptText（透過 EventBus "ui:interaction-prompt"）
+    │
+    ▼  玩家按 E
+onInteract()（子類覆寫）
+    │
+    ├── reusable = true  → 不做額外處理，可再次互動
+    └── reusable = false → 清除提示 + this.node.destroy()
+    │
+    ▼  玩家離開碰撞範圍
+Toast 隱藏提示（emit null）
+```
+
+#### 對話中的行為
+
+Interactable 監聽 `dialogue:start` / `dialogue:end` 事件。對話進行中：
+- 按 E 無反應（`dialoguePlaying` 旗標阻擋）
+- 靠近提示仍會顯示（碰撞偵測不受影響），但無法觸發互動
+
+#### 繼承此類的子類
+
+| 子類 | 用途 |
+|------|------|
+| `ClueObject` | 撿起線索物件，可選觸發對話 |
+| `DialogueInteractable` | 按 E 觸發對話（NPC、告示牌等） |
 
 ### 線索物件：ClueObject
 
-繼承 Interactable。在編輯器 Inspector 中填寫三個欄位：
+繼承 Interactable。撿起時收集線索到 GameState，並可選擇觸發一段對話。
 
-| 欄位 | 說明 | 範例 |
-|------|------|------|
-| `Clue Id` | 唯一識別碼 | `graph-note-01` |
-| `Clue Text` | 線索內容文字 | `這張圖沒有負權重…` |
-| `Clue Category` | 分類標籤 | `puzzle-hint` |
+#### Inspector 屬性（含繼承）
 
-互動時：
-1. 呼叫 `GameState.collectClue({ clueId, text, category })` — 完整資料存入 GameState
-2. 發出 `"ui:show-clue"` 事件（可用於即時顯示提示）
-3. 物件淡出（opacity 降低），表示已撿取
+| 屬性 | 型別 | 說明 | 範例 |
+|------|------|------|------|
+| `Prompt Text`（繼承） | string | 靠近提示 | `按 E 撿起文件` |
+| `Reusable`（繼承） | boolean | 線索物品通常取消勾選 | `false` |
+| `Clue Id` | string | 線索唯一識別碼 | `graph-note-01` |
+| `Clue Text` | string | 線索內容文字 | `這張圖沒有負權重…` |
+| `Clue Category` | string | 分類標籤 | `puzzle-hint` |
+| `Dialogue Id` | string | 撿起後觸發的對話 ID（留空 = 不觸發） | `item-keycard` |
+
+#### 互動流程
+
+```
+玩家按 E 互動
+    │
+    ├── 已收集過 → 直接 return
+    │
+    ▼
+GameState.collectClue({ clueId, text, category })
+    │ 存入 Map<string, ClueEntry>
+    │ 發出 "clue:collected" 事件
+    │
+    ▼
+EventBus.emit("ui:show-clue", ...)
+    │
+    ▼
+物件淡出（opacity → 80）
+    │
+    ├── dialogueId 有值 → DialogueManager.play(dialogueId)
+    │                      對話開始 → 玩家凍結、UI 鎖定
+    │
+    └── reusable = false → 節點銷毀
+```
 
 ### 線索資料流
 
@@ -410,21 +469,31 @@ NotebookPanel.refreshDisplay()
 
 `GameState` 是唯一的資料來源（single source of truth）。NotebookPanel 不自己存資料，每次開啟時都從 GameState 讀取。
 
+### 新增互動物件的 Checklist
+
+- [ ] 建立空節點，group 設為 `interactable`
+- [ ] 加入 `cc.BoxCollider`，調整 size 為互動觸發範圍
+- [ ] 加入對應腳本（ClueObject / DialogueInteractable / 自訂 Interactable 子類）
+- [ ] 填寫 Inspector 屬性（promptText、clueId 等）
+- [ ] 一次性物品取消勾選 `Reusable`
+- [ ] 如需撿起後觸發對話，填入 `Dialogue Id` 並確認 JSON 存在
+- [ ] 可加子 Sprite 顯示物件圖案
+
 ---
 
 ## 對話系統
 
-視覺小說風格的對話系統，支援多種觸發方式和對話結束後的狀態變更。
+視覺小說風格的對話系統，支援多種觸發方式和對話結束後的狀態變更。對話進行中會凍結玩家移動、禁止互動、鎖定筆記面板。
 
 ### 相關腳本
 
-| 腳本 | 職責 |
-|------|------|
-| `DialogueData.ts` | 純介面定義（DialogueLine, DialogueAction, DialogueSequence） |
-| `DialogueManager.ts` | Singleton，載入 JSON、檢查條件、驅動面板、執行結束動作 |
-| `DialoguePanel.ts` | UI：姓名欄、文字區、左右立繪（說話者亮、不說話者暗） |
-| `DialogueTrigger.ts` | 區域觸發器，支援自動觸發 / 按 E 觸發 |
-| `DialogueInteractable.ts` | 繼承 Interactable，按 E 開始對話（用於 NPC、物品） |
+| 腳本 | 位置 | 職責 |
+|------|------|------|
+| `DialogueData.ts` | `scripts/dialogue/` | 純介面定義（DialogueLine, DialogueAction, DialogueSequence） |
+| `DialogueManager.ts` | `scripts/dialogue/` | Singleton，載入 JSON、檢查條件、驅動面板、執行結束動作 |
+| `DialoguePanel.ts` | `scripts/dialogue/` | UI：姓名欄、文字區、左右立繪（說話者亮、不說話者暗） |
+| `DialogueTrigger.ts` | `scripts/dialogue/` | 區域觸發器，支援自動觸發 / 按 E 觸發 |
+| `DialogueInteractable.ts` | `scripts/dialogue/` | 繼承 Interactable，按 E 開始對話（用於 NPC、告示牌等） |
 
 ### 對話資料格式
 
@@ -437,8 +506,8 @@ NotebookPanel.refreshDisplay()
     {
       "speaker": "教授",
       "text": "歡迎來到台達館...",
-      "portraitLeft": "portraits/professor",   // resources/ 相對路徑，null = 不顯示
-      "portraitRight": null,
+      "portraitLeft": "portraits/playerA/1",   // resources/ 相對路徑，null = 不顯示
+      "portraitRight": "portraits/playerB/3",
       "activeSide": "left"                      // "left" | "right" | "none"
     }
   ],
@@ -455,6 +524,56 @@ NotebookPanel.refreshDisplay()
 }
 ```
 
+#### DialogueLine 欄位
+
+| 欄位 | 型別 | 說明 |
+|------|------|------|
+| `speaker` | string | 姓名欄顯示的角色名稱 |
+| `text` | string | 對話文字內容 |
+| `portraitLeft` | string \| null | 左側立繪路徑（`resources/` 相對路徑，不含副檔名），null = 隱藏 |
+| `portraitRight` | string \| null | 右側立繪路徑，同上 |
+| `activeSide` | `"left"` \| `"right"` \| `"none"` | 目前說話者在哪一側 |
+
+#### onComplete Action 類型
+
+| type | 必填欄位 | 說明 |
+|------|---------|------|
+| `setFlag` | `flag` | 設定遊戲進度旗標 |
+| `unlockDoor` | `doorId` | 解鎖指定門 |
+| `lockDoor` | `doorId` | 鎖定指定門 |
+| `collectClue` | `clueId`, `text`, `category` | 收集線索到 GameState |
+| `emitEvent` | `event`, `data`（選填） | 發出自訂事件（如 `ui:toast`） |
+
+#### conditions 欄位
+
+| 欄位 | 說明 |
+|------|------|
+| `requireFlags` | 必須擁有這些 flag 才會觸發對話（空陣列 = 無條件） |
+| `excludeFlags` | 擁有任一 flag 就不觸發（常用於防止重複觸發） |
+
+### 立繪資源
+
+立繪圖片放在 `assets/resources/portraits/` 下，按角色分資料夾：
+
+```
+resources/portraits/
+  playerA/          ← 眼鏡角色
+    1.PNG           ← 表情 1（普通）
+    2.PNG           ← 表情 2
+    3.PNG
+    4.PNG           ← 表情 4（嚴肅）
+  playerB/          ← 藍外套角色
+    1.PNG           ← 表情 1（驚訝）
+    2.PNG           ← 表情 2（笑）
+    3.PNG           ← 表情 3（普通）
+    4.PNG           ← 表情 4（普通）
+    5.PNG           ← 表情 5（笑）
+```
+
+JSON 裡的路徑對應：`"portraits/playerA/1"` → 載入 `resources/portraits/playerA/1.PNG`。
+
+新增角色時，在 `resources/portraits/` 下建新資料夾，放入立繪圖片即可。原始素材也保留在 `Art/Portraits/` 下。
+
 ### 觸發方式
 
 | 方式 | 使用元件 | 設定 |
@@ -462,52 +581,126 @@ NotebookPanel.refreshDisplay()
 | 進入房間自動觸發 | `DialogueTrigger` | 放在 SpawnPoint 旁，`autoTrigger = true`, `oneShot = true` |
 | 碰到區域觸發 | `DialogueTrigger` | 放在指定位置，`autoTrigger = true` |
 | 按 E 互動觸發 | `DialogueInteractable` | 掛在 NPC / 物品節點上（group = "interactable"） |
-| 碰到區域按 E | `DialogueTrigger` | `autoTrigger = false` |
+| 碰到區域按 E | `DialogueTrigger` | `autoTrigger = false`，會顯示 promptText 提示 |
+| 撿起物品後觸發 | `ClueObject` | 填寫 `Dialogue Id` 欄位 |
+
+#### DialogueTrigger Inspector 屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `Dialogue Id` | string | 要觸發的對話 JSON id（對應 `resources/dialogues/` 下的檔名） |
+| `Auto Trigger` | boolean | true = 碰到就觸發，false = 顯示提示按 E 觸發 |
+| `One Shot` | boolean | true = 只觸發一次（runtime 記憶） |
+| `Prompt Text` | string | `autoTrigger = false` 時顯示的提示文字 |
+
+#### DialogueInteractable Inspector 屬性
+
+| 屬性 | 型別 | 說明 |
+|------|------|------|
+| `Dialogue Id` | string | 要觸發的對話 JSON id |
+| （繼承 Interactable 屬性） | | `Prompt Text`、`Reusable` 等 |
 
 ### 對話流程
 
 ```
 觸發對話 → DialogueManager.play(dialogueId)
-    │  載入 JSON（有快取）
-    │  檢查 conditions
+    │  cc.resources.load("dialogues/" + id)（有快取機制）
+    │  檢查 conditions（requireFlags / excludeFlags）
+    │  不符合 → return，不觸發
     ▼
-dialogue:start 事件 → PlayerController 凍結移動
-DialoguePanel 顯示第一行
+dialogue:start 事件
+    ├── PlayerController 凍結移動（frozen = true）
+    ├── Interactable 禁止 E 鍵互動（dialoguePlaying = true）
+    └── NotebookPanel 鎖定（dialogueLocked = true，若已打開則自動關閉）
     │
-    ▼  Space / Enter / 點擊
-advance() → 下一行...
+    ▼
+DialoguePanel 顯示第一行（姓名、文字、立繪）
+    │
+    ▼  Space / Enter / 點擊畫面
+advance() → 下一行...（更新文字、切換表情和立繪明暗）
     │
     ▼  最後一行之後
 endDialogue()
-├── 執行 onComplete actions（setFlag / unlockDoor / collectClue / emitEvent）
-└── dialogue:end 事件 → PlayerController 解凍
+    ├── DialoguePanel.hide()
+    ├── 逐一執行 onComplete actions
+    │    setFlag     → GameState.setFlag()
+    │    unlockDoor  → GameState.unlockDoor()
+    │    lockDoor    → GameState.lockDoor()
+    │    collectClue → GameState.collectClue()
+    │    emitEvent   → EventBus.emit()
+    └── dialogue:end 事件
+         ├── PlayerController 解凍
+         ├── Interactable 恢復互動
+         └── NotebookPanel 解鎖
 ```
+
+### 對話中的全域影響
+
+對話系統透過 EventBus 事件（`dialogue:start` / `dialogue:end`）通知所有相關系統。以下元件會響應：
+
+| 元件 | dialogue:start | dialogue:end |
+|------|---------------|-------------|
+| `PlayerController` | `frozen = true`，WASD 無效 | 恢復移動 |
+| `Interactable`（及所有子類） | `dialoguePlaying = true`，E 鍵無效 | 恢復互動 |
+| `NotebookPanel` | `dialogueLocked = true`，Tab/按鈕無效，已開啟則關閉 | 解鎖 |
+
+新增需要在對話中暫停的系統時，只需監聽這兩個事件即可。
 
 ### 立繪顯示規則
 
 - `activeSide = "left"` → 左立繪 opacity 255、右立繪 opacity 100
 - `activeSide = "right"` → 反過來
-- `activeSide = "none"` → 兩邊都 dim（旁白）
-- `portraitLeft / Right = null` → 該側立繪隱藏
+- `activeSide = "none"` → 兩邊都 dim（旁白模式）
+- `portraitLeft / Right = null` → 該側立繪 `node.active = false`（隱藏）
+
+同一段對話中可以逐行切換表情和說話者，只要在每個 `DialogueLine` 中指定不同的 portrait 路徑和 activeSide。
+
+### DialoguePanel 節點結構
+
+```
+DialoguePanel (group="ui", 掛 DialoguePanel.ts)
+    └── PanelRoot                  panelRoot（active 控制整體顯隱）
+         ├── PanelBG               cc.Sprite（半透明黑底，螢幕下方 ~1/3）
+         ├── NameLabel             cc.Label（說話者姓名，左上角）
+         ├── TextLabel             cc.Label（對話內容，自動換行）
+         ├── PortraitLeft          cc.Sprite（左側立繪，螢幕左下）
+         └── PortraitRight         cc.Sprite（右側立繪，螢幕右下）
+```
+
+DialoguePanel.ts Inspector 接線：
+
+| 屬性 | 拖入 |
+|------|------|
+| `panelRoot` | PanelRoot 節點 |
+| `nameLabel` | NameLabel 上的 cc.Label |
+| `textLabel` | TextLabel 上的 cc.Label |
+| `portraitLeft` | PortraitLeft 上的 cc.Sprite |
+| `portraitRight` | PortraitRight 上的 cc.Sprite |
+
+DialogueManager 節點是 UICanvas 下的獨立空節點，Inspector 的 `panel` 屬性拖入 DialoguePanel 節點。
 
 ### 遊戲狀態 Flags
 
-`GameState` 新增 `flags: Set<string>`，用於追蹤遊戲進度：
+`GameState` 的 `flags: Set<string>` 用於追蹤遊戲進度：
 
 ```typescript
 GameState.instance.setFlag("intro-seen");    // 設定 flag
 GameState.instance.hasFlag("intro-seen");    // 查詢 flag
 ```
 
-Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。
+Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 conditions 機制基於 flags 運作。
 
-### 新增房間觸發節點的步驟
+### 新增對話的 Checklist
 
-1. 在房間 Prefab 的 Interactables（或新建 DialogueTriggers 容器）下新增空節點
-2. Group 設為 `interactable`
-3. 加入 `cc.BoxCollider`
-4. 加入 `DialogueTrigger` 或 `DialogueInteractable` 腳本，填入 `dialogueId`
-5. 確認對應的 JSON 檔案在 `resources/dialogues/` 中
+1. 在 `resources/dialogues/` 下建立 JSON 檔案，id 與檔名一致
+2. 填寫 lines（speaker、text、portrait 路徑、activeSide）
+3. 填寫 onComplete actions（需要什麼狀態變更）
+4. 填寫 conditions（防重複觸發用 excludeFlags）
+5. 在房間 Prefab 中建立觸發節點：
+   - 區域觸發 → `DialogueTrigger`（group = "interactable" + BoxCollider）
+   - NPC 互動 → `DialogueInteractable`（group = "interactable" + BoxCollider）
+   - 物品撿起觸發 → `ClueObject` 填入 `Dialogue Id`
+6. 如使用新立繪，放入 `resources/portraits/` 對應資料夾
 
 ---
 
@@ -523,10 +716,30 @@ UI 節點放在 UICanvas 下，使用雙 Camera 架構（見上方）。**重要
 
 開啟時從 `GameState.getAllClues()` 讀取並顯示所有已收集線索。
 
+**對話中的行為**：監聽 `dialogue:start` / `dialogue:end` 事件。對話進行中 Tab 鍵和按鈕都被阻擋（`dialogueLocked = true`）。如果對話開始時筆記本已打開，會自動關閉。
+
 ### Toast 提示
 
-短暫顯示一行文字（預設 2 秒後自動消失）。透過 `EventBus.emit("ui:toast", message)` 觸發。
+Toast 同時處理兩種顯示模式：
 
-用途：
+**模式 1：短暫提示（`ui:toast`）**
+
+```typescript
+EventBus.emit("ui:toast", "獲得門禁卡！");
+```
+
+淡入 → 停留 `displayDuration` 秒（預設 2 秒）→ 淡出。用於：
+- 對話結束後的成果提示
 - 走到鎖住的門 → 「This door is locked.」
 - 任何需要即時回饋但不值得開面板的場合
+
+**模式 2：常駐提示（`ui:interaction-prompt`）**
+
+```typescript
+EventBus.emit("ui:interaction-prompt", "按 E 撿起文件");  // 顯示
+EventBus.emit("ui:interaction-prompt", null);              // 隱藏
+```
+
+玩家靠近可互動物件時淡入並常駐，離開時淡出。由 Interactable 的 `onCollisionEnter` / `onCollisionExit` 自動管理。
+
+兩種模式共用同一個 Toast 節點和 Label，不需要額外的 UI 元件。
