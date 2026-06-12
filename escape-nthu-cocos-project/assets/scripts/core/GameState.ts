@@ -16,6 +16,7 @@ export default class GameState extends cc.Component {
     private collectedClues: Map<string, ClueEntry> = new Map();
     private lockedDoors: Set<string> = new Set();
     private flags: Set<string> = new Set();
+    private riceBallCount: number = 0;
 
     onLoad() {
         if (GameState.instance) {
@@ -64,5 +65,21 @@ export default class GameState extends cc.Component {
 
     hasFlag(flag: string): boolean {
         return this.flags.has(flag);
+    }
+
+    addRiceBalls(amount: number): void {
+        this.riceBallCount += amount;
+        EventBus.emit("riceball:count-changed", this.riceBallCount);
+    }
+
+    useRiceBall(): boolean {
+        if (this.riceBallCount <= 0) return false;
+        this.riceBallCount--;
+        EventBus.emit("riceball:count-changed", this.riceBallCount);
+        return true;
+    }
+
+    getRiceBallCount(): number {
+        return this.riceBallCount;
     }
 }

@@ -79,6 +79,7 @@ export default class GhostChaseManager extends cc.Component {
 
         EventBus.on("room:changed", this.onRoomChanged, this);
         EventBus.on("ghost:caught", this.onGhostCaught, this);
+        EventBus.on("ghost:hit-by-riceball", this.onGhostHitByRiceBall, this);
 
         if (this.gameOverOverlay) this.gameOverOverlay.active = false;
 
@@ -89,6 +90,7 @@ export default class GhostChaseManager extends cc.Component {
     onDestroy() {
         EventBus.off("room:changed", this.onRoomChanged, this);
         EventBus.off("ghost:caught", this.onGhostCaught, this);
+        EventBus.off("ghost:hit-by-riceball", this.onGhostHitByRiceBall, this);
     }
 
     update(dt: number) {
@@ -244,6 +246,13 @@ export default class GhostChaseManager extends cc.Component {
         this.ghostCtrl.setGrid(grid);
         this.ghostCtrl.setTarget(rm.localPlayer);
         this.ghostCtrl.spawn(doorPos);
+    }
+
+    private onGhostHitByRiceBall(): void {
+        if (!this.chaseActive || this.gameOver) return;
+        const audio = AudioManager.instance;
+        if (audio) audio.playSFX("audio/ghost_dissipate");
+        this.endChase();
     }
 
     private onGhostCaught(): void {
