@@ -1,6 +1,17 @@
 {
   "hosting": {
     "public": "escape-nthu-cocos-project/build/web-mobile",
+    "headers": [
+      {
+        "source": "**/*.@(js|json)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ],
     "ignore": [
       "firebase.json",
       "**/.*",
