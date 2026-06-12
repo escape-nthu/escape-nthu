@@ -26,7 +26,16 @@ const rooms: [string, RoomDef][] = [
         displayName: "Room_temp_2",
         prefabPath: "prefabs/rooms/Room_temp_2",
         doors: [
-            { doorId: "door_1b", connectsTo: { roomId: "Room_temp_1", doorId: "door_1a" } }
+            { doorId: "door_1b", connectsTo: { roomId: "Room_temp_1", doorId: "door_1a" } },
+            { doorId: "door_to_level3", connectsTo: { roomId: "Room_level3", doorId: "door_level3_back" } }
+        ],
+    }],
+    ["Room_level3", {
+        roomId: "Room_level3",
+        displayName: "陽台同步舉手",
+        prefabPath: "prefabs/rooms/Room_level3",
+        doors: [
+            { doorId: "door_level3_back", connectsTo: { roomId: "Room_temp_2", doorId: "door_to_level3" } }
         ],
     }]
 ];

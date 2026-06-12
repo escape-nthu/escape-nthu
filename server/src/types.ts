@@ -17,6 +17,37 @@ export type PlayerState = {
   position?: Vector2;
 };
 
+export type GesturePlayerProgress = {
+  count: number;
+  confidence: number;
+  readyAt?: string;
+  isRaising?: boolean;
+};
+
+export type GestureRhythmAction = "nod" | "tilt";
+
+export type GestureRhythmPlayerProgress = {
+  step: number;
+  confidence: number;
+  completed: boolean;
+  mistakes: number;
+  updatedAt?: string;
+};
+
+export type GestureChallengeSnapshot = {
+  targetCount: number;
+  syncWindowMs: number;
+  players: Record<string, GesturePlayerProgress>;
+  rhythm: {
+    pattern: GestureRhythmAction[];
+    targetSteps: number;
+    players: Record<string, GestureRhythmPlayerProgress>;
+    completed: boolean;
+  };
+  completed: boolean;
+  energy?: number;
+};
+
 export type RoomStateSnapshot = {
   roomId: string;
   createdAt: string;
@@ -30,6 +61,7 @@ export type RoomStateSnapshot = {
     bestCount: number;
     completed: boolean;
   };
+  gestureChallenge: GestureChallengeSnapshot;
   escaped: boolean;
 };
 

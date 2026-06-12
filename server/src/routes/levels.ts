@@ -19,21 +19,96 @@ export async function registerLevelRoutes(app: FastifyInstance, deps: LevelRoute
     const motionType = assertString(body?.motionType, "motionType");
     const count = assertNumber(body?.count, "count");
     const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
-    const accepted = motionType === "jumping-jack" && count >= 10 && confidence >= 0;
+    const accepted = (motionType === "raised-hands" || motionType === "hands-raised") && count >= 0 && confidence >= 0;
     const state = accepted ? deps.store.completeMotion(roomId, playerId, count) : deps.store.snapshot(roomId);
 
     if (accepted) {
-      deps.gateway.broadcast(roomId, {
-        type: "level:completed",
-        payload: { playerId, levelId: "level-02", state },
-      });
+      deps.gateway.broadcast(roomId, state.gestureChallenge.completed
+        ? {
+            type: "level:completed",
+            payload: { playerId, levelId: "level-03", state },
+          }
+        : {
+            type: "room:state",
+            payload: state,
+          });
     }
 
     return {
-      completedLevelId: accepted ? "level-02" : undefined,
+      completedLevelId: state.gestureChallenge.completed ? "level-03" : undefined,
       accepted,
-      targetCount: state.motionChallenge.targetCount,
-      bestCount: state.motionChallenge.bestCount,
+      targetCount: state.gestureChallenge.targetCount,
+      bestCount: state.gestureChallenge.players[playerId]?.count ?? 0,
+      state,
+    };
+  });
+
+  app.post("/api/levels/gesture/progress", async (request) => {
+    const body = request.body as Record<string, unknown>;
+    const roomId = assertString(body?.roomId, "roomId");
+    const playerId = assertString(body?.playerId, "playerId");
+    const count = assertNumber(body?.count, "count");
+    const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
+    const isRaising = body?.isRaising === true;
+    const state = deps.store.updateGestureProgress(roomId, playerId, count, confidence, isRaising);
+
+    deps.gateway.broadcast(roomId, {
+      type: "room:state",
+      payload: state,
+    });
+
+    return {
+      accepted: true,
+      targetCount: state.gestureChallenge.targetCount,
+      playerProgress: state.gestureChallenge.players[playerId],
+      state,
+    };
+  });
+
+  app.post("/api/levels/gesture/rhythm/progress", async (request) => {
+    const body = request.body as Record<string, unknown>;
+    const roomId = assertString(body?.roomId, "roomId");
+    const playerId = assertString(body?.playerId, "playerId");
+    const step = assertNumber(body?.step, "step");
+    const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
+    const mistake = body?.mistake === true;
+    const state = deps.store.updateGestureRhythmProgress(roomId, playerId, step, confidence, mistake);
+
+    deps.gateway.broadcast(roomId, {
+      type: "room:state",
+      payload: state,
+    });
+
+    return {
+      accepted: true,
+      targetSteps: state.gestureChallenge.rhythm.targetSteps,
+      playerProgress: state.gestureChallenge.rhythm.players[playerId],
+      rhythmCompleted: state.gestureChallenge.rhythm.completed,
+      state,
+    };
+  });
+
+  app.post("/api/levels/gesture/ready", async (request) => {
+    const body = request.body as Record<string, unknown>;
+    const roomId = assertString(body?.roomId, "roomId");
+    const playerId = assertString(body?.playerId, "playerId");
+    const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
+    const state = deps.store.markGestureReady(roomId, playerId, confidence);
+
+    deps.gateway.broadcast(roomId, state.gestureChallenge.completed
+      ? {
+          type: "level:completed",
+          payload: { playerId, levelId: "level-03", state },
+        }
+      : {
+          type: "room:state",
+          payload: state,
+        });
+
+    return {
+      accepted: true,
+      completedLevelId: state.gestureChallenge.completed ? "level-03" : undefined,
+      state,
     };
   });
 

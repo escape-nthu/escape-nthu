@@ -90,8 +90,8 @@ export default class RoomManager extends cc.Component {
             }
         }
 
-        // 2. 初次進入 → 找房間內名為 SpawnPoint 的節點
-        const spawnNode = roomNode.getChildByName("SpawnPoint");
+        // 2. 初次進入或門缺少回程節點 → 優先用 Player A 測試出生點
+        const spawnNode = roomNode.getChildByName("SpawnPointA") || roomNode.getChildByName("SpawnPoint");
         if (spawnNode) {
             this.localPlayer.setPosition(spawnNode.position);
             return;
