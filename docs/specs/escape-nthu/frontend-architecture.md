@@ -706,7 +706,7 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 ## 陽台兩階段手勢關卡
 
-第三關使用 `assets/scripts/levels/Level3.ts` 管理 UI、MediaPipe、頭部節奏、雙手舉起偵測與後端同步。
+第三關使用 `assets/scripts/levels/Level3.ts` 管理 MediaPipe、頭部節奏、雙手舉起偵測與後端同步。關卡啟動時會由程式建立 `Level3OverlayRoot`，用 `cc.Graphics` 畫出全螢幕像素音遊介面，所以不再需要在場景裡手動排一整組 Label 面板。
 
 ### 節點接線
 
@@ -717,16 +717,26 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 | `Api Base Url` | 後端 URL，預設 `http://localhost:8787` |
 | `Room Id` / `Player Id` | 可由 Lobby 寫入 `localStorage`，或 demo 時在 Inspector 填入 |
 | `Final Door Id` | 完成後呼叫 `GameState.unlockDoor()` 的門 ID，預設 `final-exit-door` |
-| `Panel Root` | 第三關面板根節點 |
-| `Status/Count/Peer/Sync Label` | 顯示偵測狀態、個人次數、隊友次數與同步提示 |
-| `Phase/Beat/Pattern/Rhythm Status Label` | 顯示 Phase 1/2、目前拍點、節奏提示與偵測結果 |
+| `Rhythm Bpm` | Phase 1 方塊節拍速度；預設 `50`，約每 `1.2s` 一拍，demo 較穩 |
+| `Audio Enabled` / `Audio Volume` | 是否使用 WebAudio 產生節拍、命中、失誤與通關音效 |
+| `Panel Root` | 舊面板根節點，可留空；若仍想保留 fallback 按鈕，可拖入 |
+| `Status/Count/Peer/Sync Label` | 舊 Label 欄位，可留空；新 UI 由 `Level3OverlayRoot` 自動建立 |
+| `Phase/Beat/Pattern/Rhythm Status Label` | 舊 Label 欄位，可留空；保留只是為了相容舊場景 |
 | `Air Wall Node` | 通關後關閉的中央空氣牆 |
 | `Heart Crown Node` | 通關後顯示的愛心皇冠 |
 | `Ending Trigger Node` | 通關後啟用的結局入口或互動點 |
 | `Start/Close Button` | 開始與關閉關卡 |
 | `Fallback Controls` | debug/failure 時顯示的 Phase1 +1 / Phase1 Complete / Ready / Complete 控制 |
 
-房間內的陽台互動物件可掛 `GestureLevelTrigger`，玩家按 E 後 emit `gesture-level:start` 開啟面板。
+房間內的陽台控制器圖片或互動物件可掛 `GestureLevelTrigger`，玩家按 E 後 emit `gesture-level:start`。`Level3.ts` 會覆蓋目前場景顯示像素音遊 overlay；完成後 overlay 閃白、中央空氣牆關閉、皇冠與結局入口啟用。
+
+### 音遊 overlay 行為
+
+- Phase 1：畫面顯示 `NOD` / `SHAKE` 兩條 lane，方塊進入右側判定框時才接受姿態偵測。
+- 正確動作命中會播放 hit 音並累積一拍；錯動作或錯過判定窗會播放 miss 音並重置本輪。
+- Player A 看到完整 pattern；Player B 顯示合作提示，鼓勵兩位玩家口頭溝通。
+- Phase 2：畫面切到 `SYNC GATE`，用兩條像素能量條顯示自己與隊友是否 ready。
+- 聲音目前由 WebAudio 程式產生，不需要額外音效素材；之後若要替換成 `AudioClip`，可以再替 `Level3.ts` 加音效欄位。
 
 ### MediaPipe 與 fallback
 
@@ -735,7 +745,7 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 - `HeadRhythmDetector` 只吃 normalized landmarks，使用鼻子與左右肩膀做點頭 / 搖頭判定。
 - `RaiseHandsDetector` 使用左右肩膀與左右手腕做舉手狀態判定。
 - URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 fallback controls，確保 demo 可以完成。
-- 完成條件：兩人先完成 `點頭 → 搖頭 → 點頭 → 點頭`，再雙手舉過肩膀並維持約 2 秒；後端完成 `level-03` 後關閉空氣牆、顯示皇冠並解鎖逃生門。
+- 完成條件：兩人先在判定框內完成 `點頭 → 搖頭 → 點頭 → 點頭`，再雙手舉過肩膀並維持約 2 秒；後端完成 `level-03` 後關閉空氣牆、顯示皇冠並解鎖逃生門。
 
 ### 房間節點建議
 
