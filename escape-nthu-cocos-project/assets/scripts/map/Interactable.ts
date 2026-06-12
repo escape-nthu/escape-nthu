@@ -16,21 +16,28 @@ export default class Interactable extends cc.Component {
 
     protected playerInRange: boolean = false;
     private dialoguePlaying: boolean = false;
+    private chaseActive: boolean = false;
 
     onLoad() {
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         EventBus.on("dialogue:start", this.onDialogueStart, this);
         EventBus.on("dialogue:end", this.onDialogueEnd, this);
+        EventBus.on("chase:start", this.onChaseStart, this);
+        EventBus.on("chase:end", this.onChaseEnd, this);
     }
 
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         EventBus.off("dialogue:start", this.onDialogueStart, this);
         EventBus.off("dialogue:end", this.onDialogueEnd, this);
+        EventBus.off("chase:start", this.onChaseStart, this);
+        EventBus.off("chase:end", this.onChaseEnd, this);
     }
 
     private onDialogueStart() { this.dialoguePlaying = true; }
     private onDialogueEnd() { this.dialoguePlaying = false; }
+    private onChaseStart() { this.chaseActive = true; }
+    private onChaseEnd() { this.chaseActive = false; }
 
     onCollisionEnter(other: cc.Collider, _self: cc.Collider) {
         if (other.node.group !== "player") return;
@@ -45,7 +52,7 @@ export default class Interactable extends cc.Component {
     }
 
     private onKeyDown(event: cc.Event.EventKeyboard) {
-        if (this.dialoguePlaying) return;
+        if (this.dialoguePlaying || this.chaseActive) return;
         if (event.keyCode === cc.macro.KEY.e && this.playerInRange) {
             this.onInteract();
             if (!this.reusable) {

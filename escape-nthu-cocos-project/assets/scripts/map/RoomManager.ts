@@ -34,6 +34,10 @@ export default class RoomManager extends cc.Component {
         return this.currentRoomId;
     }
 
+    getLoadedRoom(roomId: string): cc.Node | null {
+        return this.loadedRooms.get(roomId) || null;
+    }
+
     private onDoorEnter(doorId: string) {
         const roomDef = ROOM_REGISTRY.get(this.currentRoomId);
         if (!roomDef) return;
