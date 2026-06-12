@@ -12,21 +12,21 @@ export interface RoomDef {
 }
 
 const rooms: [string, RoomDef][] = [
-    ["Room_temp_1", {
-        roomId: "Room_temp_1",
-        displayName: "Room_temp_1",
-        prefabPath: "prefabs/rooms/Room_temp_1",
+    ["Room_1", {
+        roomId: "Room_1",
+        displayName: "Room_1",
+        prefabPath: "prefabs/rooms/Room_1",
         initialRoom: true,
         doors: [
-            { doorId: "door_1a", connectsTo: { roomId: "Room_temp_2", doorId: "door_1b" } }
+            { doorId: "door_1a", connectsTo: { roomId: "Room_2", doorId: "door_1b" } }
         ],
     }],
-    ["Room_temp_2", {
-        roomId: "Room_temp_2",
-        displayName: "Room_temp_2",
-        prefabPath: "prefabs/rooms/Room_temp_2",
+    ["Room_2", {
+        roomId: "Room_2",
+        displayName: "Room_2",
+        prefabPath: "prefabs/rooms/Room_2",
         doors: [
-            { doorId: "door_1b", connectsTo: { roomId: "Room_temp_1", doorId: "door_1a" } },
+            { doorId: "door_1b", connectsTo: { roomId: "Room_1", doorId: "door_1a" } },
             { doorId: "door_to_level3", connectsTo: { roomId: "Room_level3", doorId: "door_level3_back" } }
         ],
     }],
