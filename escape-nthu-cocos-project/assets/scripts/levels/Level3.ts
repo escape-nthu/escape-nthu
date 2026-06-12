@@ -257,8 +257,10 @@ export default class Level3 extends cc.Component {
     private onPoseResult = (result: PoseDetectionResult): void => {
         this.drawPose(result.landmarks);
         if (this.phase === "rhythm") {
+            if (this.rhythmStep >= this.rhythmTargetSteps) return;
             this.applyRhythmFrame(this.rhythmDetector.process(result));
         } else if (this.phase === "raiseHands") {
+            if (this.hasSentRaiseHandsReady()) return;
             this.applyRaiseHandsFrame(this.raiseHandsDetector.process(result));
         }
     };
@@ -562,6 +564,10 @@ export default class Level3 extends cc.Component {
     private isRhythmHitWindowActive(): boolean {
         const progress = this.getRhythmTimingProgress();
         return progress >= 0.64 && progress <= 0.96;
+    }
+
+    private hasSentRaiseHandsReady(): boolean {
+        return this.localCount >= this.targetCount && this.lastReadySentAt > 0;
     }
 
     private handleRhythmMiss(message: string, confidence: number): void {

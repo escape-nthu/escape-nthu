@@ -109,13 +109,13 @@ export default class Level3Overlay {
     }
 
     private createLabels(): void {
-        this.labels.title = this.createLabel("title", "陽台訊號校準", 32, 0, 260, cc.color(239, 255, 255));
-        this.labels.subtitle = this.createLabel("subtitle", "跟著節拍完成點頭與搖頭", 16, 0, 225, cc.color(129, 255, 226));
+        this.labels.title = this.createLabel("title", "陽台訊號校準", 32, 0, 286, cc.color(239, 255, 255));
+        this.labels.subtitle = this.createLabel("subtitle", "跟著節拍完成點頭與搖頭", 16, 0, 246, cc.color(129, 255, 226));
         this.labels.left = this.createLabel("left", "", 18, -330, -230, cc.color(255, 216, 92));
         this.labels.right = this.createLabel("right", "", 18, 330, -230, cc.color(255, 124, 178));
         this.labels.center = this.createLabel("center", "", 24, 0, -230, cc.color(255, 255, 255));
         this.labels.status = this.createLabel("status", "", 18, 0, 160, cc.color(189, 228, 255));
-        this.labels.hint = this.createLabel("hint", "", 15, 0, -275, cc.color(190, 198, 215));
+        this.labels.hint = this.createLabel("hint", "", 15, 0, -304, cc.color(190, 198, 215));
         this.labels.nodLane = this.createLabel("nodLane", "點頭", 14, -406, 52, cc.color(85, 255, 209), 84);
         this.labels.shakeLane = this.createLabel("shakeLane", "搖頭", 14, -406, -52, cc.color(255, 124, 178), 84);
     }
