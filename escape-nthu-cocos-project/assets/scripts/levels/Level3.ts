@@ -8,6 +8,7 @@ import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsD
 import { PoseDetectionResult, PoseLandmark } from "../vision/VisionTypes";
 
 const { ccclass, property } = cc._decorator;
+const DEFAULT_API_BASE_URL = "https://escape-nthu-server-vcuhs5ugda-de.a.run.app";
 
 type GestureProgress = {
     count: number;
@@ -46,7 +47,7 @@ type Level3Phase = "rhythm" | "raiseHands" | "completed";
 @ccclass
 export default class Level3 extends cc.Component {
     @property
-    apiBaseUrl: string = "http://localhost:8787";
+    apiBaseUrl: string = DEFAULT_API_BASE_URL;
 
     @property
     roomId: string = "";
@@ -877,11 +878,16 @@ export default class Level3 extends cc.Component {
     }
 
     private async postJson(path: string, payload: Record<string, unknown>): Promise<any> {
-        const response = await fetch(this.apiBaseUrl + path, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+        let response: Response;
+        try {
+            response = await fetch(this.normalizeApiBaseUrl(this.apiBaseUrl) + path, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+        } catch (_error) {
+            throw new Error("無法連線到後端，請回首頁確認 API URL");
+        }
         if (!response.ok) {
             throw new Error("Request failed with " + response.status);
         }
@@ -899,8 +905,22 @@ export default class Level3 extends cc.Component {
 
     private loadIdentityFromStorage(): void {
         if (typeof localStorage === "undefined") return;
+        this.apiBaseUrl = this.normalizeApiBaseUrl(localStorage.getItem("escape-nthu:apiBaseUrl") || this.apiBaseUrl);
         this.roomId = this.roomId || localStorage.getItem("escape-nthu:roomId") || "";
         this.playerId = this.playerId || localStorage.getItem("escape-nthu:playerId") || "";
+    }
+
+    private normalizeApiBaseUrl(value: string): string {
+        const trimmed = (value || "").trim().replace(/\/$/, "");
+        if (!trimmed) return DEFAULT_API_BASE_URL;
+
+        const isHostedPage = typeof location !== "undefined" && location.protocol === "https:";
+        const isLocalhostApi = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
+        if (isHostedPage && isLocalhostApi) {
+            return DEFAULT_API_BASE_URL;
+        }
+
+        return trimmed;
     }
 
     private isDebugGestureEnabled(): boolean {

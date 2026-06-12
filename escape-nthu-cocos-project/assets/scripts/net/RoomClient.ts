@@ -1,6 +1,7 @@
 import EventBus from "../core/EventBus";
 
 const { ccclass, property } = cc._decorator;
+const DEFAULT_API_BASE_URL = "https://escape-nthu-server-vcuhs5ugda-de.a.run.app";
 
 type PlayerRole = "A" | "B";
 
@@ -38,7 +39,7 @@ export default class RoomClient extends cc.Component {
     static instance: RoomClient | null = null;
 
     @property
-    apiBaseUrl: string = "http://localhost:8787";
+    apiBaseUrl: string = DEFAULT_API_BASE_URL;
 
     @property(cc.Node)
     localPlayer: cc.Node | null = null;
@@ -74,7 +75,7 @@ export default class RoomClient extends cc.Component {
     }
 
     private async onLobbyStart(payload: LobbyStartPayload): Promise<void> {
-        this.apiBaseUrl = (payload && payload.apiBaseUrl) || this.apiBaseUrl;
+        this.apiBaseUrl = this.normalizeApiBaseUrl((payload && payload.apiBaseUrl) || this.apiBaseUrl);
 
         try {
             const session = payload && payload.roomId
@@ -111,13 +112,19 @@ export default class RoomClient extends cc.Component {
     }
 
     private async request(path: string, init: RequestInit): Promise<RoomJoinResponse> {
-        const response = await fetch(`${this.apiBaseUrl}${path}`, {
-            ...init,
-            headers: {
-                "Content-Type": "application/json",
-                ...(init.headers || {}),
-            },
-        });
+        let response: Response;
+        try {
+            response = await fetch(`${this.apiBaseUrl}${path}`, {
+                ...init,
+                headers: {
+                    "Content-Type": "application/json",
+                    ...(init.headers || {}),
+                },
+            });
+        } catch (_error) {
+            throw new Error(`無法連線到後端 ${this.apiBaseUrl}，請到開發者設定確認 API URL`);
+        }
+
         const payload = await response.json();
 
         if (!response.ok) {
@@ -290,5 +297,18 @@ export default class RoomClient extends cc.Component {
         localStorage.setItem("escape-nthu:roomId", this.roomId);
         localStorage.setItem("escape-nthu:playerId", this.playerId);
         localStorage.setItem("escape-nthu:role", this.role);
+    }
+
+    private normalizeApiBaseUrl(value: string): string {
+        const trimmed = (value || "").trim().replace(/\/$/, "");
+        if (!trimmed) return DEFAULT_API_BASE_URL;
+
+        const isHostedPage = typeof location !== "undefined" && location.protocol === "https:";
+        const isLocalhostApi = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
+        if (isHostedPage && isLocalhostApi) {
+            return DEFAULT_API_BASE_URL;
+        }
+
+        return trimmed;
     }
 }
