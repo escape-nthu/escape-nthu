@@ -89,7 +89,7 @@ export default class RoomClient extends cc.Component {
             this.connectSocket();
             this.applyRoomState(session.state);
             EventBus.emit("network:room-connected", session);
-            EventBus.emit("ui:toast", `房號 ${this.roomId} / 你是 Player ${this.role}`);
+            EventBus.emit("ui:toast", "連線成功！");
         } catch (error) {
             const message = error instanceof Error ? error.message : "多人連線初始化失敗";
             EventBus.emit("network:room-error", message);

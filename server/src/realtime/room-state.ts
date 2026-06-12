@@ -432,4 +432,29 @@ export class InMemoryRoomStore {
       return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
     });
   }
+
+  cleanupRooms(timeoutMs = 1000 * 60 * 5): void {
+    const now = Date.now();
+    for (const [roomId, room] of this.rooms.entries()) {
+      let active = false;
+      for (const player of room.players.values()) {
+        if (player.connected) {
+          active = true;
+          break;
+        }
+        const lastSeen = Date.parse(player.lastSeenAt);
+        if (now - lastSeen < timeoutMs) {
+          active = true;
+          break;
+        }
+      }
+      
+      if (!active) {
+        const createdAt = Date.parse(room.createdAt);
+        if (now - createdAt > timeoutMs) {
+          this.rooms.delete(roomId);
+        }
+      }
+    }
+  }
 }

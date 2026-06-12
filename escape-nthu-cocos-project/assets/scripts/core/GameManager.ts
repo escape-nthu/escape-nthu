@@ -1,5 +1,6 @@
 import HomeMenu from "../ui/HomeMenu";
 import RoomClient from "../net/RoomClient";
+import HUDPanel from "../ui/HUDPanel";
 
 const { ccclass, property } = cc._decorator;
 
@@ -55,3 +56,4 @@ export default class GameManager extends cc.Component {
         client.localPlayer = cc.find("Player");
     }
 }
+
