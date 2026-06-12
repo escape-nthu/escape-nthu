@@ -55,5 +55,14 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
   await registerLevelRoutes(app, { store, gateway });
   await registerDialogueRoutes(app, { store, gateway, npcService });
 
+  const cleanupInterval = setInterval(() => {
+    store.cleanupRooms();
+  }, 1000 * 60);
+
+  app.addHook("onClose", (instance, done) => {
+    clearInterval(cleanupInterval);
+    done();
+  });
+
   return app;
 }

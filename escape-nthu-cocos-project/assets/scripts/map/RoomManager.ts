@@ -19,10 +19,12 @@ export default class RoomManager extends cc.Component {
     onLoad() {
         RoomManager.instance = this;
         EventBus.on("door:enter", this.onDoorEnter, this);
+        EventBus.on("network:room-transition", this.onNetworkRoomTransition, this);
     }
 
     onDestroy() {
         EventBus.off("door:enter", this.onDoorEnter, this);
+        EventBus.off("network:room-transition", this.onNetworkRoomTransition, this);
     }
 
     start() {
@@ -45,6 +47,15 @@ export default class RoomManager extends cc.Component {
         }
 
         this.enterRoom(doorDef.connectsTo.roomId, doorDef.connectsTo.doorId);
+        EventBus.emit("room:transition-local", {
+            targetRoomId: doorDef.connectsTo.roomId,
+            arrivalDoorId: doorDef.connectsTo.doorId,
+        });
+    }
+
+    private onNetworkRoomTransition(payload: { targetRoomId: string; arrivalDoorId: string }): void {
+        if (!payload || !payload.targetRoomId || !payload.arrivalDoorId) return;
+        this.enterRoom(payload.targetRoomId, payload.arrivalDoorId);
     }
 
     async enterRoom(targetRoomId: string, arrivalDoorId: string | null): Promise<void> {

@@ -8,11 +8,13 @@ import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsD
 import { PoseDetectionResult, PoseLandmark } from "../vision/VisionTypes";
 
 const { ccclass, property } = cc._decorator;
+const DEFAULT_API_BASE_URL = "https://escape-nthu-server-vcuhs5ugda-de.a.run.app";
 
 type GestureProgress = {
     count: number;
     confidence: number;
     readyAt?: string;
+    isRaising?: boolean;
 };
 
 type RhythmProgress = {
@@ -33,6 +35,7 @@ type GestureChallenge = {
         completed: boolean;
     };
     completed: boolean;
+    energy?: number;
 };
 
 type RoomStateSnapshot = {
@@ -46,7 +49,7 @@ type Level3Phase = "rhythm" | "raiseHands" | "completed";
 @ccclass
 export default class Level3 extends cc.Component {
     @property
-    apiBaseUrl: string = "http://localhost:8787";
+    apiBaseUrl: string = DEFAULT_API_BASE_URL;
 
     @property
     roomId: string = "";
@@ -175,6 +178,7 @@ export default class Level3 extends cc.Component {
     private localIsRaising: boolean = false;
     private lastProgressReportedAt: number = 0;
     private lastState: RoomStateSnapshot | null = null;
+    private challengeStartedOnce: boolean = false;
 
     onLoad() {
         this.debugFallback = this.isDebugGestureEnabled();
@@ -247,17 +251,11 @@ export default class Level3 extends cc.Component {
         if (this.running) return;
 
         this.running = true;
-        this.phase = "rhythm";
-        this.localCount = 0;
-        this.peerCount = 0;
-        this.rhythmStep = 0;
-        this.peerRhythmStep = 0;
-        this.lastProgressSent = -1;
-        this.lastReadySentAt = 0;
-        this.rhythmBeatElapsed = 0;
-        this.rhythmClockActive = false;
-        this.currentDetectorAction = "none";
-        this.completionHandled = false;
+        if (!this.hasRestorableChallengeState()) {
+            this.resetChallengeProgress();
+        }
+        this.resetChallengeRuntime();
+        this.challengeStartedOnce = true;
         this.applyDifficulty(this.normalizeDifficulty(this.difficulty));
         this.rhythmDetector.reset();
         this.raiseHandsDetector.reset();
@@ -272,16 +270,65 @@ export default class Level3 extends cc.Component {
         if (this.pixelOverlay) this.pixelOverlay.playBeat();
         this.setFallbackVisible(this.debugFallback);
 
+        await this.refreshRoomState();
+        if (!this.running || this.phase === "completed" || !this.adapter) {
+            return;
+        }
+
         try {
             const video = await this.adapter.start(this.onPoseResult);
+            if (!this.running || !this.adapter) {
+                return;
+            }
             this.attachVideoOverlay(video);
-            this.rhythmClockActive = true;
-            this.setStatus("請正對鏡頭，準備完成頭部節奏");
+            this.rhythmClockActive = this.phase === "rhythm";
+            this.setStatus(this.statusForResumedPhase());
         } catch (error) {
             this.setStatus("攝影機或模型載入失敗，已切換 demo fallback");
             this.setFallbackVisible(true);
             EventBus.emit("ui:toast", "已啟用手勢 demo 模式");
         }
+    }
+
+    private hasRestorableChallengeState(): boolean {
+        return this.challengeStartedOnce ||
+            this.lastState !== null ||
+            this.phase !== "rhythm" ||
+            this.rhythmStep > 0 ||
+            this.peerRhythmStep > 0 ||
+            this.localCount > 0 ||
+            this.peerCount > 0 ||
+            this.syncEnergy > 0;
+    }
+
+    private resetChallengeProgress(): void {
+        this.phase = "rhythm";
+        this.localCount = 0;
+        this.peerCount = 0;
+        this.rhythmStep = 0;
+        this.peerRhythmStep = 0;
+        this.syncEnergy = 0;
+        this.localIsRaising = false;
+        this.completionHandled = false;
+    }
+
+    private resetChallengeRuntime(): void {
+        this.lastProgressSent = -1;
+        this.lastReadySentAt = 0;
+        this.rhythmBeatElapsed = 0;
+        this.rhythmClockActive = false;
+        this.currentDetectorAction = "none";
+        this.lastProgressReportedAt = 0;
+    }
+
+    private statusForResumedPhase(): string {
+        if (this.phase === "raiseHands") {
+            return "已回到 Phase 2，請同步舉起雙手";
+        }
+        if (this.phase === "completed") {
+            return "同步成功，逃生門已解鎖";
+        }
+        return "請正對鏡頭，準備完成頭部節奏";
     }
 
     private closeChallenge = (): void => {
@@ -496,6 +543,23 @@ export default class Level3 extends cc.Component {
         }
     }
 
+    private async refreshRoomState(): Promise<void> {
+        if (!this.hasRoomIdentity()) {
+            return;
+        }
+
+        try {
+            const state = await this.getJson("/api/rooms/" + encodeURIComponent(this.roomId.toUpperCase()));
+            this.onRoomState(state);
+        } catch (error) {
+            if (this.lastState) {
+                this.onRoomState(this.lastState);
+                return;
+            }
+            this.setStatus("讀取關卡狀態失敗，將以目前狀態繼續");
+        }
+    }
+
     private onRoomState(state: RoomStateSnapshot): void {
         if (!state) return;
         this.lastState = state;
@@ -515,6 +579,10 @@ export default class Level3 extends cc.Component {
                 const rhythmLocal = state.gestureChallenge.rhythm.players[this.playerId];
                 if (rhythmLocal) this.rhythmStep = rhythmLocal.step;
                 this.peerRhythmStep = this.findPeerRhythmStep(state.gestureChallenge);
+                if (state.gestureChallenge.rhythm.completed) {
+                    this.rhythmStep = Math.max(this.rhythmStep, this.rhythmTargetSteps);
+                    this.peerRhythmStep = Math.max(this.peerRhythmStep, this.rhythmTargetSteps);
+                }
                 if (state.gestureChallenge.rhythm.completed && this.phase === "rhythm") {
                     this.phase = "raiseHands";
                     this.rhythmBeatElapsed = 0;
@@ -877,11 +945,31 @@ export default class Level3 extends cc.Component {
     }
 
     private async postJson(path: string, payload: Record<string, unknown>): Promise<any> {
-        const response = await fetch(this.apiBaseUrl + path, {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+        let response: Response;
+        try {
+            response = await fetch(this.normalizeApiBaseUrl(this.apiBaseUrl) + path, {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+        } catch (_error) {
+            throw new Error("無法連線到後端，請回首頁確認 API URL");
+        }
+        if (!response.ok) {
+            throw new Error("Request failed with " + response.status);
+        }
+        return response.json();
+    }
+
+    private async getJson(path: string): Promise<any> {
+        let response: Response;
+        try {
+            response = await fetch(this.normalizeApiBaseUrl(this.apiBaseUrl) + path, {
+                method: "GET",
+            });
+        } catch (_error) {
+            throw new Error("無法連線到後端，請回首頁確認 API URL");
+        }
         if (!response.ok) {
             throw new Error("Request failed with " + response.status);
         }
@@ -899,8 +987,22 @@ export default class Level3 extends cc.Component {
 
     private loadIdentityFromStorage(): void {
         if (typeof localStorage === "undefined") return;
+        this.apiBaseUrl = this.normalizeApiBaseUrl(localStorage.getItem("escape-nthu:apiBaseUrl") || this.apiBaseUrl);
         this.roomId = this.roomId || localStorage.getItem("escape-nthu:roomId") || "";
         this.playerId = this.playerId || localStorage.getItem("escape-nthu:playerId") || "";
+    }
+
+    private normalizeApiBaseUrl(value: string): string {
+        const trimmed = (value || "").trim().replace(/\/$/, "");
+        if (!trimmed) return DEFAULT_API_BASE_URL;
+
+        const isHostedPage = typeof location !== "undefined" && location.protocol === "https:";
+        const isLocalhostApi = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(trimmed);
+        if (isHostedPage && isLocalhostApi) {
+            return DEFAULT_API_BASE_URL;
+        }
+
+        return trimmed;
     }
 
     private isDebugGestureEnabled(): boolean {

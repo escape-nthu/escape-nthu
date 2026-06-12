@@ -1,3 +1,7 @@
+import HomeMenu from "../ui/HomeMenu";
+import RoomClient from "../net/RoomClient";
+import HUDPanel from "../ui/HUDPanel";
+
 const { ccclass, property } = cc._decorator;
 
 // Group indices matching settings/project.json group-list
@@ -33,5 +37,23 @@ export default class GameManager extends cc.Component {
             this.uiCamera.clearFlags =
                 cc.Camera.ClearFlags.DEPTH | cc.Camera.ClearFlags.STENCIL;
         }
+
+        this.installHomeMenu();
+        this.installRoomClient();
+    }
+
+    private installHomeMenu(): void {
+        const uiCanvas = cc.find("UICanvas") || this.node;
+        if (!uiCanvas.getComponent(HomeMenu)) {
+            uiCanvas.addComponent(HomeMenu);
+        }
+    }
+
+    private installRoomClient(): void {
+        if (this.node.getComponent(RoomClient)) return;
+
+        const client = this.node.addComponent(RoomClient);
+        client.localPlayer = cc.find("Player");
     }
 }
+

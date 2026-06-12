@@ -349,7 +349,7 @@ export class InMemoryRoomStore {
       return;
     }
 
-    if (!this.isGestureRhythmComplete(room, activePlayers)) {
+    if (!this.haveConnectedPlayersCompletedGestureRhythm(room, activePlayers)) {
       return;
     }
 
@@ -406,14 +406,23 @@ export class InMemoryRoomStore {
         players: Object.fromEntries(
           [...room.gestureChallenge.rhythm.players.entries()].sort(([a], [b]) => a.localeCompare(b)),
         ),
-        completed: this.isGestureRhythmComplete(room, [...room.players.keys()]),
+        completed: this.hasGestureRhythmPhaseCleared(room),
       },
       completed: room.gestureChallenge.completed,
       energy: room.gestureChallenge.energy,
     };
   }
 
-  private isGestureRhythmComplete(room: Room, activePlayers: string[]): boolean {
+  private hasGestureRhythmPhaseCleared(room: Room): boolean {
+    return [...room.players.keys()].some((playerId) => {
+      if (!room.players.get(playerId)?.connected) {
+        return false;
+      }
+      return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
+    });
+  }
+
+  private haveConnectedPlayersCompletedGestureRhythm(room: Room, activePlayers: string[]): boolean {
     const connectedPlayers = activePlayers.filter((pId) => room.players.get(pId)?.connected);
     if (connectedPlayers.length < 2) {
       return false;
@@ -422,5 +431,30 @@ export class InMemoryRoomStore {
     return connectedPlayers.every((playerId) => {
       return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
     });
+  }
+
+  cleanupRooms(timeoutMs = 1000 * 60 * 5): void {
+    const now = Date.now();
+    for (const [roomId, room] of this.rooms.entries()) {
+      let active = false;
+      for (const player of room.players.values()) {
+        if (player.connected) {
+          active = true;
+          break;
+        }
+        const lastSeen = Date.parse(player.lastSeenAt);
+        if (now - lastSeen < timeoutMs) {
+          active = true;
+          break;
+        }
+      }
+      
+      if (!active) {
+        const createdAt = Date.parse(room.createdAt);
+        if (now - createdAt > timeoutMs) {
+          this.rooms.delete(roomId);
+        }
+      }
+    }
   }
 }
