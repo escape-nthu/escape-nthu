@@ -704,9 +704,9 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 ---
 
-## 陽台同步深蹲關卡
+## 陽台同步舉手關卡
 
-第三關使用 `assets/scripts/levels/Level3.ts` 管理 UI、MediaPipe、深蹲計數與後端同步。
+第三關使用 `assets/scripts/levels/Level3.ts` 管理 UI、MediaPipe、雙手舉起偵測與後端同步。
 
 ### 節點接線
 
@@ -728,9 +728,9 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 - `MediaPipePoseAdapter` 透過 CDN module script 載入 `@mediapipe/tasks-vision`，避免 Cocos 2.4 直接 import ESM。
 - webcam 預覽與骨架點使用 DOM overlay 疊在 Cocos canvas 右上角，關卡關閉時會清除。
-- `SquatDetector` 只吃 normalized landmarks，使用髖、膝、踝做 standing/down 狀態機。
+- `RaiseHandsDetector` 只吃 normalized landmarks，使用左右肩膀與左右手腕做舉手狀態判定。
 - URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 fallback controls，確保 demo 可以完成。
-- 完成條件：每位玩家 5 次深蹲後，兩人 3 秒內同步蹲下 ready；後端完成 `level-03` 後解鎖逃生門。
+- 完成條件：每位玩家雙手舉過肩膀並維持約 2 秒，兩人 3 秒內同步 ready；後端完成 `level-03` 後解鎖逃生門。
 
 ---
 

@@ -240,7 +240,7 @@ server/
 {
   "roomId": "ABCD",
   "playerId": "p_456",
-  "count": 5,
+  "count": 1,
   "confidence": 0.82
 }
 ```
@@ -250,9 +250,9 @@ server/
 ```json
 {
   "accepted": true,
-  "targetCount": 5,
+  "targetCount": 1,
   "playerProgress": {
-    "count": 5,
+    "count": 1,
     "confidence": 0.82
   }
 }
@@ -270,7 +270,7 @@ server/
 }
 ```
 
-兩位玩家都達到 5 次深蹲，且 ready 時間差在 3 秒內時完成第三關：
+兩位玩家都完成雙手舉起 ready，且 ready 時間差在 3 秒內時完成第三關：
 
 ```json
 {
@@ -354,8 +354,8 @@ Root
 
 - 使用瀏覽器攝影機輸入，只在前端做姿態辨識，避免傳送影像到後端。
 - MVP 使用 MediaPipe Pose CDN 快速整合；Cocos 透過 adapter 取得 normalized landmarks，不直接 import MediaPipe ESM。
-- 指定動作為深蹲：以髖、膝、踝關鍵點做 standing / down 狀態機計數。
-- 每位玩家完成 5 次後，兩人需在 3 秒內同步蹲下 ready，後端完成 `level-03`。
+- 指定動作為雙手舉起：以肩膀與手腕關鍵點判定雙手是否高於肩膀。
+- 每位玩家雙手舉起維持約 2 秒後達成 ready，兩人需在 3 秒內同步 ready，後端完成 `level-03`。
 - 後端只接收 count、readyAt 與 confidence，不保存影像。
 - Demo fallback：若攝影機或模型失敗，或 URL 帶 `?debugGesture=1`，顯示手動 +1 / Ready / Complete 控制。
 
