@@ -717,7 +717,7 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 | `Api Base Url` | 後端 URL，預設 `http://localhost:8787` |
 | `Room Id` / `Player Id` | 可由 Lobby 寫入 `localStorage`，或 demo 時在 Inspector 填入 |
 | `Final Door Id` | 完成後呼叫 `GameState.unlockDoor()` 的門 ID，預設 `final-exit-door` |
-| `Rhythm Bpm` | Phase 1 方塊節拍速度；預設 `50`，約每 `1.2s` 一拍，demo 較穩 |
+| `Rhythm Bpm` | Phase 1 方塊節拍速度；預設 `36`，約每 `1.67s` 一拍，demo 較穩 |
 | `Audio Enabled` / `Audio Volume` | 是否使用 WebAudio 產生節拍、命中、失誤與通關音效 |
 | `Panel Root` | 舊面板根節點，可留空；若仍想保留 fallback 按鈕，可拖入 |
 | `Status/Count/Peer/Sync Label` | 舊 Label 欄位，可留空；新 UI 由 `Level3OverlayRoot` 自動建立 |
@@ -726,16 +726,16 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 | `Heart Crown Node` | 通關後顯示的愛心皇冠 |
 | `Ending Trigger Node` | 通關後啟用的結局入口或互動點 |
 | `Start/Close Button` | 開始與關閉關卡 |
-| `Fallback Controls` | debug/failure 時顯示的 Phase1 +1 / Phase1 Complete / Ready / Complete 控制 |
+| `Fallback Controls` | debug/failure 時顯示的「第一階段 +1 / 第一階段完成 / 同步準備 / 完成」控制 |
 
 房間內的陽台控制器圖片或互動物件可掛 `GestureLevelTrigger`，玩家按 E 後 emit `gesture-level:start`。`Level3.ts` 會覆蓋目前場景顯示像素音遊 overlay；完成後 overlay 閃白、中央空氣牆關閉、皇冠與結局入口啟用。
 
 ### 音遊 overlay 行為
 
-- Phase 1：畫面顯示 `NOD` / `SHAKE` 兩條 lane，方塊進入右側判定框時才接受姿態偵測。
+- Phase 1：畫面顯示「點頭 / 搖頭」兩條加長軌道，方塊進入右側判定框時才接受姿態偵測。
 - 正確動作命中會播放 hit 音並累積一拍；錯動作或錯過判定窗會播放 miss 音並重置本輪。
 - Player A 看到完整 pattern；Player B 顯示合作提示，鼓勵兩位玩家口頭溝通。
-- Phase 2：畫面切到 `SYNC GATE`，用兩條像素能量條顯示自己與隊友是否 ready。
+- Phase 2：畫面切到「同步之門」，用兩條像素能量條顯示自己與隊友是否準備完成。
 - 聲音目前由 WebAudio 程式產生，不需要額外音效素材；之後若要替換成 `AudioClip`，可以再替 `Level3.ts` 加音效欄位。
 
 ### MediaPipe 與 fallback
@@ -744,7 +744,7 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 - webcam 預覽與骨架點使用 DOM overlay 疊在 Cocos canvas 右上角，關卡關閉時會清除。
 - `HeadRhythmDetector` 只吃 normalized landmarks，使用鼻子與左右肩膀做點頭 / 搖頭判定。
 - `RaiseHandsDetector` 使用左右肩膀與左右手腕做舉手狀態判定。
-- URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 fallback controls，確保 demo 可以完成。
+- URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 demo 控制按鈕，確保展示時可以完成。
 - 完成條件：兩人先在判定框內完成 `點頭 → 搖頭 → 點頭 → 點頭`，再雙手舉過肩膀並維持約 2 秒；後端完成 `level-03` 後關閉空氣牆、顯示皇冠並解鎖逃生門。
 
 ### 房間節點建議

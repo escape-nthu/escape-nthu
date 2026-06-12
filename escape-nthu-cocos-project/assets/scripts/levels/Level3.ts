@@ -60,7 +60,7 @@ export default class Level3 extends cc.Component {
     autoStart: boolean = false;
 
     @property
-    rhythmBpm: number = 50;
+    rhythmBpm: number = 36;
 
     @property
     audioVolume: number = 0.18;
@@ -213,7 +213,7 @@ export default class Level3 extends cc.Component {
         } catch (error) {
             this.setStatus("攝影機或模型載入失敗，已切換 demo fallback");
             this.setFallbackVisible(true);
-            EventBus.emit("ui:toast", "Gesture fallback enabled.");
+            EventBus.emit("ui:toast", "已啟用手勢 demo 模式");
         }
     }
 
@@ -315,12 +315,12 @@ export default class Level3 extends cc.Component {
             this.rhythmBeatElapsed = 0;
             if (this.pixelOverlay) this.pixelOverlay.flashHit();
             this.postRhythmProgress(this.rhythmStep, 1, false);
-            this.setStatus("Fallback: Phase 1 +1");
+            this.setStatus("Demo：第一階段 +1");
         } else if (this.phase === "raiseHands") {
             this.localCount = 1;
             this.raiseHandsDetector.reset();
             this.postGestureProgress(this.localCount, 1);
-            this.setStatus("Fallback: 已達成舉手姿勢");
+            this.setStatus("Demo：已達成舉手姿勢");
         }
         this.updateProgressLabels();
     };
@@ -330,7 +330,7 @@ export default class Level3 extends cc.Component {
         this.rhythmBeatElapsed = 0;
         if (this.pixelOverlay) this.pixelOverlay.flashPhaseClear();
         this.postRhythmProgress(this.rhythmStep, 1, false);
-        this.setStatus("Fallback: Phase 1 complete");
+        this.setStatus("Demo：第一階段完成");
         this.updateProgressLabels();
     };
 
@@ -340,7 +340,7 @@ export default class Level3 extends cc.Component {
             return;
         }
         this.postGestureReady(1);
-        this.setStatus("Fallback: 已送出同步 ready");
+        this.setStatus("Demo：已送出同步準備");
     };
 
     private onFallbackComplete = (): void => {
@@ -505,12 +505,12 @@ export default class Level3 extends cc.Component {
         if (this.countLabel) {
             this.countLabel.string = this.phase === "rhythm"
                 ? "你：" + this.rhythmStep + " / " + this.rhythmTargetSteps
-                : "你：" + (this.localCount >= this.targetCount ? "Ready" : "等待舉手");
+                : "你：" + (this.localCount >= this.targetCount ? "準備完成" : "等待舉手");
         }
         if (this.peerLabel) {
             this.peerLabel.string = this.phase === "rhythm"
                 ? "隊友：" + this.peerRhythmStep + " / " + this.rhythmTargetSteps
-                : "隊友：" + (this.peerCount >= this.targetCount ? "Ready" : "等待同步");
+                : "隊友：" + (this.peerCount >= this.targetCount ? "準備完成" : "等待同步");
         }
         if (this.syncLabel) {
             this.syncLabel.string = this.phase === "rhythm"
@@ -550,7 +550,7 @@ export default class Level3 extends cc.Component {
     }
 
     private getRhythmBeatSeconds(): number {
-        const bpm = Math.max(30, this.rhythmBpm || 50);
+        const bpm = Math.max(30, this.rhythmBpm || 36);
         return 60 / bpm;
     }
 

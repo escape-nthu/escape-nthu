@@ -99,8 +99,8 @@ export default class Level3Overlay {
         this.phase = "completed";
         this.flashTimer = 0.7;
         this.flashColor = cc.color(255, 255, 255, 190);
-        this.setLabel("title", "SIGNAL LINK COMPLETE");
-        this.setLabel("subtitle", "AIR WALL OPEN");
+        this.setLabel("title", "訊號同步完成");
+        this.setLabel("subtitle", "空氣牆已開啟");
         this.audio.play("complete");
     }
 
@@ -109,15 +109,15 @@ export default class Level3Overlay {
     }
 
     private createLabels(): void {
-        this.labels.title = this.createLabel("title", "SIGNAL CALIBRATION", 32, 0, 260, cc.color(239, 255, 255));
-        this.labels.subtitle = this.createLabel("subtitle", "SYNC THE BALCONY SIGNAL", 16, 0, 225, cc.color(129, 255, 226));
+        this.labels.title = this.createLabel("title", "陽台訊號校準", 32, 0, 260, cc.color(239, 255, 255));
+        this.labels.subtitle = this.createLabel("subtitle", "跟著節拍完成點頭與搖頭", 16, 0, 225, cc.color(129, 255, 226));
         this.labels.left = this.createLabel("left", "", 18, -330, -230, cc.color(255, 216, 92));
         this.labels.right = this.createLabel("right", "", 18, 330, -230, cc.color(255, 124, 178));
         this.labels.center = this.createLabel("center", "", 24, 0, -230, cc.color(255, 255, 255));
         this.labels.status = this.createLabel("status", "", 18, 0, 160, cc.color(189, 228, 255));
         this.labels.hint = this.createLabel("hint", "", 15, 0, -275, cc.color(190, 198, 215));
-        this.labels.nodLane = this.createLabel("nodLane", "NOD", 14, -382, 52, cc.color(85, 255, 209), 84);
-        this.labels.shakeLane = this.createLabel("shakeLane", "SHAKE", 14, -382, -52, cc.color(255, 124, 178), 84);
+        this.labels.nodLane = this.createLabel("nodLane", "點頭", 14, -406, 52, cc.color(85, 255, 209), 84);
+        this.labels.shakeLane = this.createLabel("shakeLane", "搖頭", 14, -406, -52, cc.color(255, 124, 178), 84);
     }
 
     private createLabel(
@@ -144,23 +144,23 @@ export default class Level3Overlay {
     }
 
     private updateRhythmLabels(): void {
-        this.setLabel("title", "SIGNAL CALIBRATION");
-        this.setLabel("subtitle", "PHASE 1 / HEAD RHYTHM");
-        this.setLabel("left", "YOU " + this.currentStep + " / " + this.pattern.length);
-        this.setLabel("right", "PARTNER " + this.peerStep + " / " + this.pattern.length);
+        this.setLabel("title", "陽台訊號校準");
+        this.setLabel("subtitle", "第一階段 / 頭部節奏");
+        this.setLabel("left", "你 " + this.currentStep + " / " + this.pattern.length);
+        this.setLabel("right", "隊友 " + this.peerStep + " / " + this.pattern.length);
         this.setLabel("center", this.actionText(this.activeAction));
-        this.setLabel("status", this.role === "B" ? "FOLLOW YOUR PARTNER'S CALL" : this.patternText());
-        this.setLabel("hint", this.hitWindowActive ? "HIT NOW / DETECTED " + this.actionText(this.detectorAction) : "WAIT FOR THE FRAME");
+        this.setLabel("status", this.role === "B" ? "聽隊友提示，在節拍內做動作" : this.patternText());
+        this.setLabel("hint", this.hitWindowActive ? "判定！偵測到：" + this.actionText(this.detectorAction) : "等待方塊進入判定框");
     }
 
     private updateRaiseHandsLabels(): void {
-        this.setLabel("title", "SYNC GATE");
-        this.setLabel("subtitle", "PHASE 2 / RAISE BOTH HANDS");
-        this.setLabel("left", "YOU " + (this.localReady ? "READY" : "CHARGING"));
-        this.setLabel("right", "PARTNER " + (this.peerReady ? "READY" : "WAITING"));
-        this.setLabel("center", this.localReady ? "HOLD SIGNAL" : "RAISE HANDS");
-        this.setLabel("status", "BOTH PLAYERS READY WITHIN 3 SECONDS");
-        this.setLabel("hint", "KEEP YOUR HANDS ABOVE SHOULDERS");
+        this.setLabel("title", "同步之門");
+        this.setLabel("subtitle", "第二階段 / 雙手舉起");
+        this.setLabel("left", "你 " + (this.localReady ? "準備完成" : "充能中"));
+        this.setLabel("right", "隊友 " + (this.peerReady ? "準備完成" : "等待中"));
+        this.setLabel("center", this.localReady ? "保持訊號" : "舉起雙手");
+        this.setLabel("status", "兩位玩家需要在 3 秒內同步完成");
+        this.setLabel("hint", "雙手保持高於肩膀");
     }
 
     private setLabel(key: string, value: string): void {
@@ -206,11 +206,11 @@ export default class Level3Overlay {
 
     private drawRhythm(g: cc.Graphics): void {
         const laneY = { nod: 52, shake: -52 };
-        this.drawLane(g, "NOD", laneY.nod, cc.color(85, 255, 209));
-        this.drawLane(g, "SHAKE", laneY.shake, cc.color(255, 124, 178));
+        this.drawLane(g, laneY.nod, cc.color(85, 255, 209));
+        this.drawLane(g, laneY.shake, cc.color(255, 124, 178));
 
-        const targetX = 200;
-        const blockX = -290 + this.timingProgress * 490;
+        const targetX = 265;
+        const blockX = -395 + this.timingProgress * 660;
         const blockY = this.activeAction === "shake" ? laneY.shake : laneY.nod;
         const blockColor = this.activeAction === "shake" ? cc.color(255, 124, 178) : cc.color(85, 255, 209);
 
@@ -223,11 +223,11 @@ export default class Level3Overlay {
         this.fillRect(g, -130, -174, progressW, 18, cc.color(85, 255, 209, 230));
     }
 
-    private drawLane(g: cc.Graphics, label: string, y: number, color: cc.Color): void {
-        this.strokeRect(g, -320, y - 28, 560, 56, cc.color(75, 86, 130), 2);
-        this.fillRect(g, -316, y - 24, 552, 48, cc.color(12, 17, 34, 190));
-        this.fillRect(g, -316, y + 22, 552, 2, color);
-        this.drawPixelTextBox(g, label, -382, y, color);
+    private drawLane(g: cc.Graphics, y: number, color: cc.Color): void {
+        this.strokeRect(g, -410, y - 28, 720, 56, cc.color(75, 86, 130), 2);
+        this.fillRect(g, -406, y - 24, 712, 48, cc.color(12, 17, 34, 190));
+        this.fillRect(g, -406, y + 22, 712, 2, color);
+        this.drawPixelTextBox(g, -406, y, color);
     }
 
     private drawSyncGate(g: cc.Graphics): void {
@@ -247,7 +247,7 @@ export default class Level3Overlay {
         this.fillRect(g, -156, -74, 312, 148, cc.color(85, 255, 209, 80));
     }
 
-    private drawPixelTextBox(g: cc.Graphics, text: string, x: number, y: number, color: cc.Color): void {
+    private drawPixelTextBox(g: cc.Graphics, x: number, y: number, color: cc.Color): void {
         this.fillRect(g, x - 42, y - 18, 84, 36, cc.color(5, 8, 18, 235));
         this.strokeRect(g, x - 42, y - 18, 84, 36, color, 2);
     }
@@ -285,14 +285,14 @@ export default class Level3Overlay {
     private patternText(): string {
         const labels: string[] = [];
         for (let i = 0; i < this.pattern.length; i += 1) {
-            labels.push(this.actionText(this.pattern[i]).toUpperCase());
+            labels.push(this.actionText(this.pattern[i]));
         }
-        return labels.join("  /  ");
+        return labels.join(" / ");
     }
 
     private actionText(action: HeadRhythmAction): string {
-        if (action === "nod") return "NOD";
-        if (action === "shake") return "SHAKE";
+        if (action === "nod") return "點頭";
+        if (action === "shake") return "搖頭";
         return "-";
     }
 }
