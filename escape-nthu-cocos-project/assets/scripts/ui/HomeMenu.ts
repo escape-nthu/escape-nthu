@@ -33,6 +33,13 @@ export default class HomeMenu extends cc.Component {
         this.applyVolume();
         this.build();
         this.renderHome();
+        EventBus.on("network:room-connected", this.onRoomConnected, this);
+        EventBus.on("network:room-error", this.onRoomError, this);
+    }
+
+    onDestroy(): void {
+        EventBus.off("network:room-connected", this.onRoomConnected, this);
+        EventBus.off("network:room-error", this.onRoomError, this);
     }
 
     show(): void {
@@ -142,7 +149,7 @@ export default class HomeMenu extends cc.Component {
         if (typeof localStorage !== "undefined") {
             localStorage.setItem(STORAGE_API_BASE, this.getApiBaseUrl());
         }
-        if (this.overlay) this.overlay.active = false;
+        this.setStatus("連線後端並準備房間中...");
         EventBus.emit("lobby:start-game", {
             apiBaseUrl: this.getApiBaseUrl(),
             roomId: this.getRoomId(),
@@ -150,6 +157,16 @@ export default class HomeMenu extends cc.Component {
             volume: this.volume,
             audioEnabled: this.audioEnabled,
         });
+    }
+
+    private onRoomConnected(payload: { roomId: string; role: string }): void {
+        this.setStatus(`已進入房間 ${payload.roomId}，你是 Player ${payload.role}`);
+        if (this.overlay) this.overlay.active = false;
+    }
+
+    private onRoomError(message: string): void {
+        this.show();
+        this.setStatus(message || "多人連線失敗");
     }
 
     private logout(): void {

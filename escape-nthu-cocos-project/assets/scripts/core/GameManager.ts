@@ -1,4 +1,5 @@
 import HomeMenu from "../ui/HomeMenu";
+import RoomClient from "../net/RoomClient";
 
 const { ccclass, property } = cc._decorator;
 
@@ -37,6 +38,7 @@ export default class GameManager extends cc.Component {
         }
 
         this.installHomeMenu();
+        this.installRoomClient();
     }
 
     private installHomeMenu(): void {
@@ -44,5 +46,12 @@ export default class GameManager extends cc.Component {
         if (!uiCanvas.getComponent(HomeMenu)) {
             uiCanvas.addComponent(HomeMenu);
         }
+    }
+
+    private installRoomClient(): void {
+        if (this.node.getComponent(RoomClient)) return;
+
+        const client = this.node.addComponent(RoomClient);
+        client.localPlayer = cc.find("Player");
     }
 }

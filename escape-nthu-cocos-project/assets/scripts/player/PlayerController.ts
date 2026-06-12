@@ -58,6 +58,10 @@ export default class PlayerController extends cc.Component {
 
         this.node.x += this.moveDir.x * speed * dt;
         this.node.y += this.moveDir.y * speed * dt;
+
+        if (this.moveDir.x !== 0 || this.moveDir.y !== 0) {
+            EventBus.emit("player:position-updated", { x: this.node.x, y: this.node.y });
+        }
     }
 
     // cc.CollisionManager callbacks — push player out of walls
