@@ -1,0 +1,9 @@
+.git
+.DS_Store
+node_modules
+server/node_modules
+server/dist
+escape-nthu-cocos-project/library
+escape-nthu-cocos-project/local
+escape-nthu-cocos-project/temp
+escape-nthu-cocos-project/build

@@ -11,6 +11,7 @@ CS2410 Software Studio 期末專案規劃倉庫。前端依課程規定使用 Co
 - [架構設計](docs/specs/escape-nthu/design.md)：Cocos 前端、後端、多人連線、AI、手勢辨識與資料流設計。
 - [實作計畫](docs/specs/escape-nthu/tasks.md)：里程碑、任務拆分、負責人與驗收方式。
 - [後端開工重點](docs/backend.md)：後端可先開始的功能、開發順序與 MVP 邊界。
+- [後端部署與 Firebase 設定](docs/deployment.md)：Docker/Render 部署、Firebase Email/Password 與 Cocos 首頁欄位。
 - [GitHub 協作設定](docs/github-collaboration.md)：issues、milestones、project board 與 PR 規則。
 
 ## 核心方向
