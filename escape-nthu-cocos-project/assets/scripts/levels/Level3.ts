@@ -178,6 +178,7 @@ export default class Level3 extends cc.Component {
     private localIsRaising: boolean = false;
     private lastProgressReportedAt: number = 0;
     private lastState: RoomStateSnapshot | null = null;
+    private challengeStartedOnce: boolean = false;
 
     onLoad() {
         this.debugFallback = this.isDebugGestureEnabled();
@@ -250,17 +251,11 @@ export default class Level3 extends cc.Component {
         if (this.running) return;
 
         this.running = true;
-        this.phase = "rhythm";
-        this.localCount = 0;
-        this.peerCount = 0;
-        this.rhythmStep = 0;
-        this.peerRhythmStep = 0;
-        this.lastProgressSent = -1;
-        this.lastReadySentAt = 0;
-        this.rhythmBeatElapsed = 0;
-        this.rhythmClockActive = false;
-        this.currentDetectorAction = "none";
-        this.completionHandled = false;
+        if (!this.hasRestorableChallengeState()) {
+            this.resetChallengeProgress();
+        }
+        this.resetChallengeRuntime();
+        this.challengeStartedOnce = true;
         this.applyDifficulty(this.normalizeDifficulty(this.difficulty));
         this.rhythmDetector.reset();
         this.raiseHandsDetector.reset();
@@ -275,16 +270,65 @@ export default class Level3 extends cc.Component {
         if (this.pixelOverlay) this.pixelOverlay.playBeat();
         this.setFallbackVisible(this.debugFallback);
 
+        await this.refreshRoomState();
+        if (!this.running || this.phase === "completed" || !this.adapter) {
+            return;
+        }
+
         try {
             const video = await this.adapter.start(this.onPoseResult);
+            if (!this.running || !this.adapter) {
+                return;
+            }
             this.attachVideoOverlay(video);
-            this.rhythmClockActive = true;
-            this.setStatus("請正對鏡頭，準備完成頭部節奏");
+            this.rhythmClockActive = this.phase === "rhythm";
+            this.setStatus(this.statusForResumedPhase());
         } catch (error) {
             this.setStatus("攝影機或模型載入失敗，已切換 demo fallback");
             this.setFallbackVisible(true);
             EventBus.emit("ui:toast", "已啟用手勢 demo 模式");
         }
+    }
+
+    private hasRestorableChallengeState(): boolean {
+        return this.challengeStartedOnce ||
+            this.lastState !== null ||
+            this.phase !== "rhythm" ||
+            this.rhythmStep > 0 ||
+            this.peerRhythmStep > 0 ||
+            this.localCount > 0 ||
+            this.peerCount > 0 ||
+            this.syncEnergy > 0;
+    }
+
+    private resetChallengeProgress(): void {
+        this.phase = "rhythm";
+        this.localCount = 0;
+        this.peerCount = 0;
+        this.rhythmStep = 0;
+        this.peerRhythmStep = 0;
+        this.syncEnergy = 0;
+        this.localIsRaising = false;
+        this.completionHandled = false;
+    }
+
+    private resetChallengeRuntime(): void {
+        this.lastProgressSent = -1;
+        this.lastReadySentAt = 0;
+        this.rhythmBeatElapsed = 0;
+        this.rhythmClockActive = false;
+        this.currentDetectorAction = "none";
+        this.lastProgressReportedAt = 0;
+    }
+
+    private statusForResumedPhase(): string {
+        if (this.phase === "raiseHands") {
+            return "已回到 Phase 2，請同步舉起雙手";
+        }
+        if (this.phase === "completed") {
+            return "同步成功，逃生門已解鎖";
+        }
+        return "請正對鏡頭，準備完成頭部節奏";
     }
 
     private closeChallenge = (): void => {
@@ -496,6 +540,23 @@ export default class Level3 extends cc.Component {
             this.onRoomState(body.state);
         } catch (error) {
             this.setStatus("手動完成失敗，請確認後端連線");
+        }
+    }
+
+    private async refreshRoomState(): Promise<void> {
+        if (!this.hasRoomIdentity()) {
+            return;
+        }
+
+        try {
+            const state = await this.getJson("/api/rooms/" + encodeURIComponent(this.roomId.toUpperCase()));
+            this.onRoomState(state);
+        } catch (error) {
+            if (this.lastState) {
+                this.onRoomState(this.lastState);
+                return;
+            }
+            this.setStatus("讀取關卡狀態失敗，將以目前狀態繼續");
         }
     }
 
@@ -890,6 +951,21 @@ export default class Level3 extends cc.Component {
                 method: "POST",
                 headers: { "content-type": "application/json" },
                 body: JSON.stringify(payload),
+            });
+        } catch (_error) {
+            throw new Error("無法連線到後端，請回首頁確認 API URL");
+        }
+        if (!response.ok) {
+            throw new Error("Request failed with " + response.status);
+        }
+        return response.json();
+    }
+
+    private async getJson(path: string): Promise<any> {
+        let response: Response;
+        try {
+            response = await fetch(this.normalizeApiBaseUrl(this.apiBaseUrl) + path, {
+                method: "GET",
             });
         } catch (_error) {
             throw new Error("無法連線到後端，請回首頁確認 API URL");
