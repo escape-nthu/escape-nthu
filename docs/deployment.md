@@ -25,7 +25,7 @@ http://localhost:8787
 
 ```bash
 docker build -f server/Dockerfile -t escape-nthu-server .
-docker run --rm -p 8787:8787 --env PORT=8787 escape-nthu-server
+docker run --rm -p 8787:8080 escape-nthu-server
 ```
 
 另開一個 terminal 驗證：
@@ -34,25 +34,81 @@ docker run --rm -p 8787:8787 --env PORT=8787 escape-nthu-server
 curl http://localhost:8787/health
 ```
 
-## 3. 部署到 Render
+## 3. 部署到 GCP Cloud Run
 
-1. 到 Render 建立 New Web Service，連到 `escape-nthu/escape-nthu` repository。
-2. Runtime 選 Docker。
-3. Dockerfile path 填 `server/Dockerfile`。
-4. Health check path 填 `/health`。
-5. Environment variables 設：
-   - `HOST=0.0.0.0`
-   - `PORT=10000`
-   - `OPENAI_API_KEY=` 如果要啟用 AI NPC 才填
-   - `OPENAI_MODEL=gpt-4o-mini`
-   - `LLM_TIMEOUT_MS=8000`
-6. 建立服務後，等 Render deploy 完成，複製服務 URL，例如：
+Cloud Run 會提供 HTTPS URL，也支援 WebSocket。後端已經讀取 Cloud Run 注入的 `PORT`，並且 bind 到 `0.0.0.0`。
 
-```text
-https://escape-nthu-server.onrender.com
+以下指令假設你已安裝並登入 `gcloud` CLI。
+
+1. 選擇專案與區域：
+
+```bash
+gcloud auth login
+gcloud config set project <YOUR_PROJECT_ID>
+gcloud config set run/region asia-east1
 ```
 
-Cocos 首頁的「後端 API URL」填 Render 的 HTTPS URL。前端會自動把 WebSocket 轉成 `wss://.../ws`。
+2. 啟用需要的 API：
+
+```bash
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com
+```
+
+3. 建立 Artifact Registry repository。只需要建立一次：
+
+```bash
+gcloud artifacts repositories create escape-nthu \
+  --repository-format=docker \
+  --location=asia-east1 \
+  --description="Escape NTHU backend containers"
+```
+
+4. 從專案根目錄用 Cloud Build 建 image：
+
+```bash
+gcloud builds submit \
+  --config server/cloudbuild.yaml \
+  --substitutions=_REGION=asia-east1,_REPOSITORY=escape-nthu,_IMAGE=server \
+  .
+```
+
+5. 部署到 Cloud Run：
+
+```bash
+gcloud run deploy escape-nthu-server \
+  --image asia-east1-docker.pkg.dev/$(gcloud config get-value project)/escape-nthu/server:latest \
+  --region asia-east1 \
+  --allow-unauthenticated \
+  --set-env-vars HOST=0.0.0.0,OPENAI_MODEL=gpt-4o-mini,LLM_TIMEOUT_MS=8000
+```
+
+如果要啟用 AI NPC，另外設定：
+
+```bash
+gcloud run services update escape-nthu-server \
+  --region asia-east1 \
+  --set-env-vars OPENAI_API_KEY=<YOUR_OPENAI_API_KEY>
+```
+
+6. 部署完成後，Cloud Run 會輸出服務 URL，例如：
+
+```text
+https://escape-nthu-server-xxxxx-de.a.run.app
+```
+
+Cocos 首頁的「後端 API URL」填 Cloud Run 的 HTTPS URL。前端會自動把 WebSocket 轉成 `wss://.../ws`。
+
+Cloud Run WebSocket 注意事項：
+
+- WebSocket 連線會被 Cloud Run 視為持續中的 request。
+- Cloud Run request timeout 會影響 WebSocket 最長連線時間；前端之後若要長時間遊玩，應補重連流程。
+- 目前房間狀態存在單一 process 的 memory 裡。Cloud Run 若 scale 到多個 instances，同一房間的兩位玩家可能被分到不同 instance。Demo 時建議先設定最大 instance 為 1：
+
+```bash
+gcloud run services update escape-nthu-server \
+  --region asia-east1 \
+  --max-instances=1
+```
 
 ## 4. Firebase Email/Password 註冊登入
 
