@@ -13,7 +13,7 @@ export default class PlayerController extends cc.Component {
 
     private moveDir: cc.Vec2 = cc.v2(0, 0);
     private isSprinting: boolean = false;
-    private frozen: boolean = false;
+    private frozen: boolean = true;
 
     private keyState = {
         w: false, a: false, s: false, d: false,
@@ -25,6 +25,7 @@ export default class PlayerController extends cc.Component {
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_UP, this.onKeyUp, this);
         EventBus.on("dialogue:start", this.onFreeze, this);
         EventBus.on("dialogue:end", this.onUnfreeze, this);
+        EventBus.on("lobby:start-game", this.onUnfreeze, this);
     }
 
     onDestroy() {
@@ -32,6 +33,7 @@ export default class PlayerController extends cc.Component {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_UP, this.onKeyUp, this);
         EventBus.off("dialogue:start", this.onFreeze, this);
         EventBus.off("dialogue:end", this.onUnfreeze, this);
+        EventBus.off("lobby:start-game", this.onUnfreeze, this);
     }
 
     private onFreeze() { this.frozen = true; }

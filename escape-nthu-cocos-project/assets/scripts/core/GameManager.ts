@@ -1,3 +1,5 @@
+import HomeMenu from "../ui/HomeMenu";
+
 const { ccclass, property } = cc._decorator;
 
 // Group indices matching settings/project.json group-list
@@ -32,6 +34,15 @@ export default class GameManager extends cc.Component {
             // Don't clear color so game world shows through; only clear depth
             this.uiCamera.clearFlags =
                 cc.Camera.ClearFlags.DEPTH | cc.Camera.ClearFlags.STENCIL;
+        }
+
+        this.installHomeMenu();
+    }
+
+    private installHomeMenu(): void {
+        const uiCanvas = cc.find("UICanvas") || this.node;
+        if (!uiCanvas.getComponent(HomeMenu)) {
+            uiCanvas.addComponent(HomeMenu);
         }
     }
 }
