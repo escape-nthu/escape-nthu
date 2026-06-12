@@ -1,6 +1,7 @@
 import EventBus from "../core/EventBus";
 import GameState from "../core/GameState";
 import Level3Overlay, { Level3Difficulty } from "./Level3Overlay";
+import RoomManager from "../map/RoomManager";
 import MediaPipePoseAdapter from "../vision/MediaPipePoseAdapter";
 import HeadRhythmDetector, { HeadRhythmAction, HeadRhythmFrameResult } from "../vision/HeadRhythmDetector";
 import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsDetector";
@@ -256,7 +257,7 @@ export default class Level3 extends cc.Component {
             return;
         }
 
-        if (event.keyCode === cc.macro.KEY.e && this.isNearLevel3GestureTrigger()) {
+        if (event.keyCode === cc.macro.KEY.e && this.canStartFromKeyboard()) {
             this.startChallenge();
         }
     }
@@ -654,14 +655,28 @@ export default class Level3 extends cc.Component {
         ];
     }
 
+    private canStartFromKeyboard(): boolean {
+        if (RoomManager.instance && RoomManager.instance.getCurrentRoomId() === "Room_level3") {
+            return true;
+        }
+        return this.isNearLevel3GestureTrigger();
+    }
+
     private isNearLevel3GestureTrigger(): boolean {
         const player = this.findNodeByGroup(cc.director.getScene(), "player");
-        const trigger = this.findNodeByName(cc.director.getScene(), "Level3_gesture");
+        const trigger = this.findNearestLevel3Trigger();
         if (!player || !trigger) return false;
 
         const playerWorld = player.convertToWorldSpaceAR(cc.Vec2.ZERO);
         const triggerWorld = trigger.convertToWorldSpaceAR(cc.Vec2.ZERO);
         return playerWorld.sub(triggerWorld).mag() <= this.keyboardActivationRadius;
+    }
+
+    private findNearestLevel3Trigger(): cc.Node {
+        const scene = cc.director.getScene();
+        return this.findNodeByName(scene, "controller-left") ||
+            this.findNodeByName(scene, "controller-right") ||
+            this.findNodeByName(scene, "Level3_gesture");
     }
 
     private findNodeByName(root: cc.Node, name: string): cc.Node {
