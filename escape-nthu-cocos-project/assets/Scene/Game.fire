@@ -20,7 +20,7 @@
         "__id__": 14
       }
     ],
-    "_active": true,
+    "_active": false,
     "_components": [],
     "_prefab": null,
     "_opacity": 255,
@@ -610,15 +610,18 @@
       },
       {
         "__id__": 40
+      },
+      {
+        "__id__": 52
       }
     ],
     "_active": true,
     "_components": [
       {
-        "__id__": 52
+        "__id__": 54
       },
       {
-        "__id__": 53
+        "__id__": 55
       }
     ],
     "_prefab": null,
@@ -2353,6 +2356,120 @@
     "_isTrimmedMode": true,
     "_atlas": null,
     "_id": "c21kqqBEhIzZIkdX6B94Ky"
+  },
+  {
+    "__type__": "cc.Node",
+    "_name": "Level3",
+    "_objFlags": 0,
+    "_parent": {
+      "__id__": 14
+    },
+    "_children": [],
+    "_active": true,
+    "_components": [
+      {
+        "__id__": 53
+      }
+    ],
+    "_prefab": null,
+    "_opacity": 255,
+    "_color": {
+      "__type__": "cc.Color",
+      "r": 255,
+      "g": 255,
+      "b": 255,
+      "a": 255
+    },
+    "_contentSize": {
+      "__type__": "cc.Size",
+      "width": 0,
+      "height": 0
+    },
+    "_anchorPoint": {
+      "__type__": "cc.Vec2",
+      "x": 0.5,
+      "y": 0.5
+    },
+    "_trs": {
+      "__type__": "TypedArray",
+      "ctor": "Float64Array",
+      "array": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        1,
+        1,
+        1
+      ]
+    },
+    "_eulerAngles": {
+      "__type__": "cc.Vec3",
+      "x": 0,
+      "y": 0,
+      "z": 0
+    },
+    "_skewX": 0,
+    "_skewY": 0,
+    "_is3DNode": false,
+    "_groupIndex": 0,
+    "groupIndex": 0,
+    "_id": "a9bjXrThdEfYbuL3ERq48C"
+  },
+  {
+    "__type__": "bdbdbiD6TFIwpJvGzQI8rVC",
+    "_name": "",
+    "_objFlags": 0,
+    "node": {
+      "__id__": 52
+    },
+    "_enabled": true,
+    "apiBaseUrl": "http://localhost:8787",
+    "roomId": "",
+    "playerId": "",
+    "finalDoorId": "final-exit-door",
+    "autoStart": false,
+    "keyboardActivationRadius": 160,
+    "rhythmBpm": 30,
+    "difficulty": "normal",
+    "audioVolume": 0.18,
+    "audioEnabled": true,
+    "panelRoot": null,
+    "titleLabel": null,
+    "statusLabel": null,
+    "countLabel": null,
+    "peerLabel": null,
+    "syncLabel": null,
+    "phaseLabel": null,
+    "beatLabel": null,
+    "patternLabel": null,
+    "rhythmStatusLabel": null,
+    "airWallNode": null,
+    "heartCrownNode": null,
+    "endingTriggerNode": null,
+    "startButton": null,
+    "closeButton": null,
+    "fallbackControls": null,
+    "fallbackCountButton": null,
+    "fallbackRhythmCompleteButton": null,
+    "fallbackReadyButton": null,
+    "fallbackCompleteButton": null,
+    "hitClip": {
+      "__uuid__": "04537dcf-1e9e-4d28-a7c0-03f4d08de11d"
+    },
+    "missClip": {
+      "__uuid__": "c86b9b4c-d1fa-4f44-8833-a02245017d33"
+    },
+    "bgmClip": {
+      "__uuid__": "ce4f4a67-4c44-4d37-a254-60e104f3939d"
+    },
+    "victoryClip": {
+      "__uuid__": "19dec39d-e2fc-42bc-b947-066ada31520b"
+    },
+    "_id": "d2l4mw25tMM6K7bkSFY1lb"
   },
   {
     "__type__": "cc.Canvas",

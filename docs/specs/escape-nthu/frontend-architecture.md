@@ -704,6 +704,70 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 ---
 
+## 陽台兩階段手勢關卡
+
+第三關使用 `assets/scripts/levels/Level3.ts` 管理 MediaPipe、頭部節奏、雙手舉起偵測與後端同步。關卡啟動時會由程式建立 `Level3OverlayRoot`，用 `cc.Graphics` 畫出全螢幕像素音遊介面，所以不再需要在場景裡手動排一整組 Label 面板。
+
+### 節點接線
+
+建議在 `UICanvas` 下建立 `Level3` 空節點並掛腳本：
+
+| 屬性 | 用途 |
+|------|------|
+| `Api Base Url` | 後端 URL，預設 `http://localhost:8787` |
+| `Room Id` / `Player Id` | 可由 Lobby 寫入 `localStorage`，或 demo 時在 Inspector 填入 |
+| `Final Door Id` | 完成後呼叫 `GameState.unlockDoor()` 的門 ID，預設 `final-exit-door` |
+| `Rhythm Bpm` | Phase 1 方塊節拍速度；會由難度覆蓋，普通預設 `30`，約每 `2s` 一拍 |
+| `Difficulty` | 預設 `normal`；可用右上角「簡單 / 普通 / 挑戰」在遊戲中切換 |
+| `Audio Enabled` / `Audio Volume` | 是否使用 WebAudio 產生節拍、命中、失誤與通關音效 |
+| `Panel Root` | 舊面板根節點，可留空；若仍想保留 fallback 按鈕，可拖入 |
+| `Status/Count/Peer/Sync Label` | 舊 Label 欄位，可留空；新 UI 由 `Level3OverlayRoot` 自動建立 |
+| `Phase/Beat/Pattern/Rhythm Status Label` | 舊 Label 欄位，可留空；保留只是為了相容舊場景 |
+| `Air Wall Node` | 通關後關閉的中央空氣牆 |
+| `Heart Crown Node` | 通關後顯示的愛心皇冠 |
+| `Ending Trigger Node` | 通關後啟用的結局入口或互動點 |
+| `Start/Close Button` | 開始與關閉關卡 |
+| `Fallback Controls` | debug/failure 時顯示的「第一階段 +1 / 第一階段完成 / 同步準備 / 完成」控制 |
+
+房間內的陽台控制器圖片或互動物件可掛 `GestureLevelTrigger`，玩家按 E 後 emit `gesture-level:start`。`Level3.ts` 會覆蓋目前場景顯示像素音遊 overlay；完成後 overlay 閃白、中央空氣牆關閉、皇冠與結局入口啟用。
+
+### 音遊 overlay 行為
+
+- Phase 1：畫面顯示「點頭 / 搖頭」兩條加長軌道，方塊進入右側判定框時才接受姿態偵測。
+- 正確動作命中會播放 hit 音並累積一拍；錯動作或錯過判定窗會播放 miss 音並重置本輪。
+- 命中音優先使用 `assets/Art/Level3/accept.wav`，錯誤音優先使用 `assets/Art/Level3/wrong.wav`；讀不到音檔時會退回程式合成音。
+- 右上角可切換三種難度：簡單約 `24 BPM`、普通約 `30 BPM`、挑戰約 `36 BPM`。
+- 按 `Esc` 會關閉姿態偵測 overlay，回到原本地圖繼續移動。
+- Player A 看到完整 pattern；Player B 顯示合作提示，鼓勵兩位玩家口頭溝通。
+- Phase 2：畫面切到「同步之門」，用兩條像素能量條顯示自己與隊友是否準備完成。
+- 節拍、通關等提示音仍由 WebAudio 程式產生；命中與錯誤音已改用 Level3 的 wav 素材，讀不到時才退回合成音。
+
+### MediaPipe 與 fallback
+
+- `MediaPipePoseAdapter` 透過 CDN module script 載入 `@mediapipe/tasks-vision`，避免 Cocos 2.4 直接 import ESM。
+- webcam 預覽與骨架點使用 DOM overlay 疊在 Cocos canvas 右上角，關卡關閉時會清除。
+- `HeadRhythmDetector` 只吃 normalized landmarks，使用鼻子與左右肩膀做點頭 / 搖頭判定。
+- `RaiseHandsDetector` 使用左右肩膀與左右手腕做舉手狀態判定。
+- URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 demo 控制按鈕，確保展示時可以完成。
+- 完成條件：兩人先在判定框內完成 `點頭 → 搖頭 → 點頭 → 點頭`，再雙手舉過肩膀並維持約 2 秒；後端完成 `level-03` 後關閉空氣牆、顯示皇冠並解鎖逃生門。
+
+### 房間節點建議
+
+在 `Room_level3.prefab` 內建立：
+
+```text
+Walls
+└── AirWallCenter        group=wall + BoxCollider，擋住中央會合缺口
+
+Decorations
+└── HeartCrown           Sprite，一開始 active=false
+
+Interactables 或 Doors
+└── EndingTrigger        通關後 active=true，接最後勝利影片或 Result scene
+```
+
+---
+
 ## UI 系統
 
 UI 節點放在 UICanvas 下，使用雙 Camera 架構（見上方）。**重要：UICanvas 和底下所有子節點的 group 都必須設為 `ui`**，否則會被 GameCamera 渲染（跟著玩家移動）。
