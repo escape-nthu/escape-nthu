@@ -19,7 +19,7 @@ export async function registerLevelRoutes(app: FastifyInstance, deps: LevelRoute
     const motionType = assertString(body?.motionType, "motionType");
     const count = assertNumber(body?.count, "count");
     const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
-    const accepted = (motionType === "squat" || motionType === "jumping-jack") && count >= 0 && confidence >= 0;
+    const accepted = (motionType === "raised-hands" || motionType === "hands-raised") && count >= 0 && confidence >= 0;
     const state = accepted ? deps.store.completeMotion(roomId, playerId, count) : deps.store.snapshot(roomId);
 
     if (accepted) {
