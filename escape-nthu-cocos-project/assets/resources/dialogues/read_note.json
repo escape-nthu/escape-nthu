@@ -1,0 +1,34 @@
+{
+    "id": "read_note",
+    "lines": [
+        {
+            "speaker": "Player B",
+            "text": "這裡有張被揉皺的紙條⋯⋯上面好像寫了些東西。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/1",
+            "activeSide": "right"
+        },
+        {
+            "speaker": "Player A",
+            "text": "我看看⋯⋯就只有四個數字：「1234」。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/1",
+            "activeSide": "left"
+        },
+        {
+            "speaker": "Player B",
+            "text": "1234？這該不會是某道鎖的密碼吧。先記下來，等等說不定用得上！",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/2",
+            "activeSide": "right"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "note-read" },
+        { "type": "emitEvent", "event": "ui:toast", "data": "密碼 1234 已記入筆記本" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": ["note-read"]
+    }
+}

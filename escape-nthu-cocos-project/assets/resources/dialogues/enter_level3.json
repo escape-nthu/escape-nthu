@@ -1,0 +1,33 @@
+{
+    "id": "enter_level3",
+    "lines": [
+        {
+            "speaker": "系統",
+            "text": "「嗶——」密碼正確，通往頂樓陽台的門鎖應聲彈開。",
+            "portraitLeft": null,
+            "portraitRight": null,
+            "activeSide": "none"
+        },
+        {
+            "speaker": "Player A",
+            "text": "1234⋯⋯便條上的數字果然是這道鎖的密碼。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/1",
+            "activeSide": "left"
+        },
+        {
+            "speaker": "Player B",
+            "text": "門後就是陽台了。深呼吸，我們一起上去吧！",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/2",
+            "activeSide": "right"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "level3-door-unlocked" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": []
+    }
+}

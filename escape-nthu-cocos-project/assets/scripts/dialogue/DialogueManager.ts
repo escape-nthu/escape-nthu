@@ -17,6 +17,7 @@ export default class DialogueManager extends cc.Component {
     private currentSeq: DialogueSequence = null;
     private currentIndex: number = 0;
     private playing: boolean = false;
+    private chaseBlocked: boolean = false;
 
     onLoad() {
         if (DialogueManager.instance) {
@@ -27,19 +28,35 @@ export default class DialogueManager extends cc.Component {
 
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         this.node.on(cc.Node.EventType.TOUCH_END, this.advance, this);
+        EventBus.on("chase:start", this.onChaseStart, this);
+        EventBus.on("chase:end", this.onChaseEnd, this);
     }
 
     onDestroy() {
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
         this.node.off(cc.Node.EventType.TOUCH_END, this.advance, this);
+        EventBus.off("chase:start", this.onChaseStart, this);
+        EventBus.off("chase:end", this.onChaseEnd, this);
     }
+
+    private onChaseStart() { this.chaseBlocked = true; }
+    private onChaseEnd() { this.chaseBlocked = false; }
 
     isPlaying(): boolean {
         return this.playing;
     }
 
     play(dialogueId: string): void {
-        if (this.playing) return;
+        if (this.playing) {
+            cc.warn("[DialogueManager] play(%s) ignored — already playing", dialogueId);
+            return;
+        }
+        if (this.chaseBlocked) {
+            cc.warn("[DialogueManager] play(%s) blocked — chase active", dialogueId);
+            return;
+        }
+
+        cc.log("[DialogueManager] play(%s)", dialogueId);
 
         const cached = this.cache.get(dialogueId);
         if (cached) {
@@ -49,9 +66,10 @@ export default class DialogueManager extends cc.Component {
 
         cc.resources.load("dialogues/" + dialogueId, cc.JsonAsset, (err: Error, asset: cc.JsonAsset) => {
             if (err) {
-                cc.error(`Failed to load dialogue: ${dialogueId}`, err);
+                cc.error("[DialogueManager] Failed to load dialogue: %s", dialogueId, err);
                 return;
             }
+            cc.log("[DialogueManager] loaded %s, starting sequence", dialogueId);
             const seq = asset.json as DialogueSequence;
             this.cache.set(dialogueId, seq);
             this.startSequence(seq);

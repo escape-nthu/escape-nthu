@@ -1,0 +1,34 @@
+{
+    "id": "unlock-server-room",
+    "lines": [
+        {
+            "speaker": "系統",
+            "text": "密碼正確，門鎖發出了一聲清脆的「喀嚓」。",
+            "portraitLeft": null,
+            "portraitRight": null,
+            "activeSide": "none"
+        },
+        {
+            "speaker": "Player B",
+            "text": "開了！你怎麼知道密碼的？",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/1",
+            "activeSide": "right"
+        },
+        {
+            "speaker": "Player A",
+            "text": "之前撿到的文件上有寫...走吧，進去看看。",
+            "portraitLeft": "portraits/playerA/1",
+            "portraitRight": "portraits/playerB/3",
+            "activeSide": "left"
+        }
+    ],
+    "onComplete": [
+        { "type": "setFlag", "flag": "server-room-unlocked" },
+        { "type": "emitEvent", "event": "ui:toast", "data": "伺服器室已開放！" }
+    ],
+    "conditions": {
+        "requireFlags": [],
+        "excludeFlags": []
+    }
+}

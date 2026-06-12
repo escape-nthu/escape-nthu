@@ -15,6 +15,10 @@ export default class RoomManager extends cc.Component {
 
     private loadedRooms: Map<string, cc.Node> = new Map();
     private currentRoomId: string = "";
+    private transitioning: boolean = false;
+
+    @property({ tooltip: "轉場後封鎖門觸發的秒數，避免到達門立刻把玩家彈回上一個房間" })
+    transitionLockDuration: number = 0.4;
 
     onLoad() {
         RoomManager.instance = this;
@@ -36,7 +40,14 @@ export default class RoomManager extends cc.Component {
         return this.currentRoomId;
     }
 
+    getLoadedRoom(roomId: string): cc.Node | null {
+        return this.loadedRooms.get(roomId) || null;
+    }
+
     private onDoorEnter(doorId: string) {
+        // 轉場進行中時忽略，避免到達門立刻再次觸發造成來回彈跳
+        if (this.transitioning) return;
+
         const roomDef = ROOM_REGISTRY.get(this.currentRoomId);
         if (!roomDef) return;
 
@@ -46,6 +57,7 @@ export default class RoomManager extends cc.Component {
             return;
         }
 
+        this.transitioning = true;
         this.enterRoom(doorDef.connectsTo.roomId, doorDef.connectsTo.doorId);
         EventBus.emit("room:transition-local", {
             targetRoomId: doorDef.connectsTo.roomId,
@@ -69,9 +81,15 @@ export default class RoomManager extends cc.Component {
             const roomDef = ROOM_REGISTRY.get(targetRoomId);
             if (!roomDef) {
                 cc.error(`Room "${targetRoomId}" not found in registry`);
+                this.transitioning = false;
                 return;
             }
-            target = await this.loadPrefab(roomDef.prefabPath);
+            try {
+                target = await this.loadPrefab(roomDef.prefabPath);
+            } catch (e) {
+                this.transitioning = false;
+                return;
+            }
             target.parent = this.node;
             this.loadedRooms.set(targetRoomId, target);
         }
@@ -81,7 +99,16 @@ export default class RoomManager extends cc.Component {
 
         this.positionPlayerAtDoor(target, arrivalDoorId);
         EventBus.emit("room:changed", targetRoomId);
+
+        // 重新定位玩家後，到達門的 collider 可能與出生點重疊而立刻觸發一次 enter，
+        // 延遲解鎖把這次重疊觸發吞掉，避免被彈回上一個房間
+        this.unschedule(this.releaseTransitionLock);
+        this.scheduleOnce(this.releaseTransitionLock, this.transitionLockDuration);
     }
+
+    private releaseTransitionLock = () => {
+        this.transitioning = false;
+    };
 
     private positionPlayerAtDoor(roomNode: cc.Node, doorId: string | null): void {
         if (!this.localPlayer) return;

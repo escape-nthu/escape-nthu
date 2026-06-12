@@ -17,6 +17,7 @@ export default class NotebookPanel extends cc.Component {
 
     private isOpen: boolean = false;
     private dialogueLocked: boolean = false;
+    private chaseLocked: boolean = false;
 
     onLoad() {
         this.node.active = false;
@@ -24,6 +25,8 @@ export default class NotebookPanel extends cc.Component {
         EventBus.on("clue:collected", this.onClueCollected, this);
         EventBus.on("dialogue:start", this.onDialogueStart, this);
         EventBus.on("dialogue:end", this.onDialogueEnd, this);
+        EventBus.on("chase:start", this.onChaseStart, this);
+        EventBus.on("chase:end", this.onChaseEnd, this);
 
         if (this.toggleButton) {
             this.toggleButton.on("click", this.toggle, this);
@@ -35,6 +38,8 @@ export default class NotebookPanel extends cc.Component {
         EventBus.off("clue:collected", this.onClueCollected, this);
         EventBus.off("dialogue:start", this.onDialogueStart, this);
         EventBus.off("dialogue:end", this.onDialogueEnd, this);
+        EventBus.off("chase:start", this.onChaseStart, this);
+        EventBus.off("chase:end", this.onChaseEnd, this);
 
         if (this.toggleButton) {
             this.toggleButton.off("click", this.toggle, this);
@@ -53,6 +58,18 @@ export default class NotebookPanel extends cc.Component {
         this.dialogueLocked = false;
     }
 
+    private onChaseStart() {
+        this.chaseLocked = true;
+        if (this.isOpen) {
+            this.isOpen = false;
+            this.node.active = false;
+        }
+    }
+
+    private onChaseEnd() {
+        this.chaseLocked = false;
+    }
+
     private onKeyDown(event: cc.Event.EventKeyboard) {
         if (event.keyCode === cc.macro.KEY.tab) {
             event.stopPropagation();
@@ -61,7 +78,7 @@ export default class NotebookPanel extends cc.Component {
     }
 
     toggle() {
-        if (this.dialogueLocked) return;
+        if (this.dialogueLocked || this.chaseLocked) return;
         this.isOpen = !this.isOpen;
         this.node.active = this.isOpen;
         if (this.isOpen) {
