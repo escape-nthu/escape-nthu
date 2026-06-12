@@ -2,12 +2,24 @@ import { HeadRhythmAction } from "../vision/HeadRhythmDetector";
 
 type OverlayPhase = "rhythm" | "raiseHands" | "completed";
 type AudioCue = "beat" | "hit" | "miss" | "phaseClear" | "complete";
+export type Level3Difficulty = "easy" | "normal" | "hard";
+
+export type Level3OverlayOptions = {
+    audioVolume: number;
+    audioEnabled: boolean;
+    hitSoundUrls: string[];
+    missSoundUrls: string[];
+    difficulty: Level3Difficulty;
+    onDifficultyChange: (difficulty: Level3Difficulty) => void;
+};
 
 export default class Level3Overlay {
     private readonly root: cc.Node;
     private readonly graphics: cc.Graphics;
     private readonly labels: Record<string, cc.Label> = {};
+    private readonly difficultyButtons: Array<{ difficulty: Level3Difficulty; x: number; y: number; w: number; h: number }> = [];
     private readonly audio: Level3AudioCue;
+    private readonly onDifficultyChange: (difficulty: Level3Difficulty) => void;
     private phase: OverlayPhase = "rhythm";
     private pattern: HeadRhythmAction[] = [];
     private currentStep: number = 0;
@@ -24,15 +36,23 @@ export default class Level3Overlay {
     private scanTime: number = 0;
     private viewWidth: number = 960;
     private viewHeight: number = 640;
+    private difficulty: Level3Difficulty = "normal";
 
-    constructor(parent: cc.Node, audioVolume: number, audioEnabled: boolean) {
+    constructor(parent: cc.Node, options: Level3OverlayOptions) {
         this.root = new cc.Node("Level3OverlayRoot");
         this.root.parent = parent;
         this.refreshViewport();
         this.root.setPosition(0, 0);
         this.root.zIndex = 999;
         this.graphics = this.root.addComponent(cc.Graphics);
-        this.audio = new Level3AudioCue(audioVolume, audioEnabled);
+        this.audio = new Level3AudioCue(
+            options.audioVolume,
+            options.audioEnabled,
+            options.hitSoundUrls,
+            options.missSoundUrls,
+        );
+        this.difficulty = options.difficulty;
+        this.onDifficultyChange = options.onDifficultyChange;
         this.createLabels();
     }
 
@@ -108,6 +128,11 @@ export default class Level3Overlay {
         this.audio.play("beat");
     }
 
+    setDifficulty(difficulty: Level3Difficulty): void {
+        this.difficulty = difficulty;
+        this.updateDifficultyLabels();
+    }
+
     private createLabels(): void {
         this.labels.title = this.createLabel("title", "陽台訊號校準", 32, 0, 286, cc.color(239, 255, 255));
         this.labels.subtitle = this.createLabel("subtitle", "跟著節拍完成點頭與搖頭", 16, 0, 246, cc.color(129, 255, 226));
@@ -118,6 +143,11 @@ export default class Level3Overlay {
         this.labels.hint = this.createLabel("hint", "", 15, 0, -304, cc.color(190, 198, 215));
         this.labels.nodLane = this.createLabel("nodLane", "點頭", 14, -406, 52, cc.color(85, 255, 209), 84);
         this.labels.shakeLane = this.createLabel("shakeLane", "搖頭", 14, -406, -52, cc.color(255, 124, 178), 84);
+        this.labels.difficultyTitle = this.createLabel("difficultyTitle", "難度", 14, 246, 286, cc.color(190, 198, 215), 54);
+        this.createDifficultyButton("easy", "簡單", 302, 286, cc.color(85, 255, 209));
+        this.createDifficultyButton("normal", "普通", 362, 286, cc.color(255, 216, 92));
+        this.createDifficultyButton("hard", "挑戰", 422, 286, cc.color(255, 124, 178));
+        this.updateDifficultyLabels();
     }
 
     private createLabel(
@@ -141,6 +171,23 @@ export default class Level3Overlay {
         label.verticalAlign = cc.Label.VerticalAlign.CENTER;
         node.color = color;
         return label;
+    }
+
+    private createDifficultyButton(
+        difficulty: Level3Difficulty,
+        text: string,
+        x: number,
+        y: number,
+        color: cc.Color,
+    ): void {
+        const label = this.createLabel("difficulty-" + difficulty, text, 13, x, y, color, 50);
+        const node = label.node;
+        node.setContentSize(54, 30);
+        node.on(cc.Node.EventType.TOUCH_END, () => {
+            this.setDifficulty(difficulty);
+            this.onDifficultyChange(difficulty);
+        });
+        this.difficultyButtons.push({ difficulty, x: x - 27, y: y - 15, w: 54, h: 30 });
     }
 
     private updateRhythmLabels(): void {
@@ -168,11 +215,25 @@ export default class Level3Overlay {
         if (label) label.string = value;
     }
 
+    private updateDifficultyLabels(): void {
+        this.setDifficultyLabel("easy", "簡單");
+        this.setDifficultyLabel("normal", "普通");
+        this.setDifficultyLabel("hard", "挑戰");
+    }
+
+    private setDifficultyLabel(difficulty: Level3Difficulty, text: string): void {
+        const label = this.labels["difficulty-" + difficulty];
+        if (!label) return;
+        label.string = this.difficulty === difficulty ? ">" + text + "<" : text;
+        label.node.opacity = this.difficulty === difficulty ? 255 : 185;
+    }
+
     private draw(): void {
         const g = this.graphics;
         g.clear();
         this.drawBackdrop(g);
         this.drawFrame(g);
+        this.drawDifficultyControls(g);
         if (this.phase === "rhythm") {
             this.drawRhythm(g);
         } else if (this.phase === "raiseHands") {
@@ -202,6 +263,15 @@ export default class Level3Overlay {
         this.strokeRect(g, -398, -248, 796, 496, cc.color(255, 124, 178), 2);
         this.fillRect(g, -390, 196, 780, 3, cc.color(255, 216, 92, 210));
         this.fillRect(g, -390, -204, 780, 3, cc.color(85, 255, 209, 210));
+    }
+
+    private drawDifficultyControls(g: cc.Graphics): void {
+        for (let i = 0; i < this.difficultyButtons.length; i += 1) {
+            const button = this.difficultyButtons[i];
+            const active = button.difficulty === this.difficulty;
+            this.fillRect(g, button.x, button.y, button.w, button.h, active ? cc.color(255, 216, 92, 72) : cc.color(5, 8, 18, 190));
+            this.strokeRect(g, button.x, button.y, button.w, button.h, active ? cc.color(255, 216, 92) : cc.color(75, 86, 130), active ? 3 : 2);
+        }
     }
 
     private drawRhythm(g: cc.Graphics): void {
@@ -301,16 +371,29 @@ class Level3AudioCue {
     private context: AudioContext | null = null;
     private readonly volume: number;
     private readonly enabled: boolean;
+    private readonly hitSoundUrls: string[];
+    private readonly missSoundUrls: string[];
+    private hitBuffer: AudioBuffer | null = null;
+    private missBuffer: AudioBuffer | null = null;
+    private hitLoadStarted: boolean = false;
+    private missLoadStarted: boolean = false;
 
-    constructor(volume: number, enabled: boolean) {
+    constructor(volume: number, enabled: boolean, hitSoundUrls: string[], missSoundUrls: string[]) {
         this.volume = volume;
         this.enabled = enabled;
+        this.hitSoundUrls = hitSoundUrls;
+        this.missSoundUrls = missSoundUrls;
+        if (enabled) {
+            this.loadSample("hit");
+            this.loadSample("miss");
+        }
     }
 
     play(cue: AudioCue): void {
         if (!this.enabled) return;
         const context = this.getContext();
         if (!context) return;
+        if ((cue === "hit" || cue === "miss") && this.playSample(cue, context)) return;
 
         const oscillator = context.createOscillator();
         const gain = context.createGain();
@@ -326,6 +409,56 @@ class Level3AudioCue {
 
     close(): void {
         this.context = null;
+    }
+
+    private playSample(cue: "hit" | "miss", context: AudioContext): boolean {
+        const buffer = cue === "hit" ? this.hitBuffer : this.missBuffer;
+        if (!buffer) {
+            this.loadSample(cue);
+            return false;
+        }
+
+        const source = context.createBufferSource();
+        const gain = context.createGain();
+        source.buffer = buffer;
+        gain.gain.value = Math.max(0, Math.min(1, this.volume));
+        source.connect(gain);
+        gain.connect(context.destination);
+        source.start();
+        return true;
+    }
+
+    private loadSample(cue: "hit" | "miss"): void {
+        if (cue === "hit" && this.hitLoadStarted) return;
+        if (cue === "miss" && this.missLoadStarted) return;
+        if (cue === "hit") this.hitLoadStarted = true;
+        if (cue === "miss") this.missLoadStarted = true;
+
+        const context = this.getContext();
+        if (!context) return;
+        const urls = cue === "hit" ? this.hitSoundUrls : this.missSoundUrls;
+        this.loadFirstAvailable(urls, context, (buffer) => {
+            if (cue === "hit") this.hitBuffer = buffer;
+            if (cue === "miss") this.missBuffer = buffer;
+        });
+    }
+
+    private loadFirstAvailable(urls: string[], context: AudioContext, done: (buffer: AudioBuffer) => void): void {
+        let index = 0;
+        const tryNext = () => {
+            if (index >= urls.length) return;
+            const url = urls[index];
+            index += 1;
+            fetch(url)
+                .then((response) => {
+                    if (!response.ok) throw new Error("Audio request failed");
+                    return response.arrayBuffer();
+                })
+                .then((arrayBuffer) => context.decodeAudioData(arrayBuffer))
+                .then(done)
+                .catch(tryNext);
+        };
+        tryNext();
     }
 
     private getContext(): AudioContext | null {

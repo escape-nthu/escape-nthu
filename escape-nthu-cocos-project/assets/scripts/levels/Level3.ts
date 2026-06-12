@@ -1,6 +1,6 @@
 import EventBus from "../core/EventBus";
 import GameState from "../core/GameState";
-import Level3Overlay from "./Level3Overlay";
+import Level3Overlay, { Level3Difficulty } from "./Level3Overlay";
 import MediaPipePoseAdapter from "../vision/MediaPipePoseAdapter";
 import HeadRhythmDetector, { HeadRhythmAction, HeadRhythmFrameResult } from "../vision/HeadRhythmDetector";
 import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsDetector";
@@ -60,7 +60,10 @@ export default class Level3 extends cc.Component {
     autoStart: boolean = false;
 
     @property
-    rhythmBpm: number = 36;
+    rhythmBpm: number = 30;
+
+    @property
+    difficulty: string = "normal";
 
     @property
     audioVolume: number = 0.18;
@@ -163,6 +166,7 @@ export default class Level3 extends cc.Component {
         this.bindButton(this.fallbackCompleteButton, this.onFallbackComplete);
         EventBus.on("gesture-level:start", this.startChallenge, this);
         EventBus.on("room:state", this.onRoomState, this);
+        cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
 
         if (this.panelRoot) this.panelRoot.active = false;
         this.setFallbackVisible(this.debugFallback);
@@ -175,6 +179,7 @@ export default class Level3 extends cc.Component {
         this.closeChallenge();
         EventBus.off("gesture-level:start", this.startChallenge, this);
         EventBus.off("room:state", this.onRoomState, this);
+        cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
     }
 
     private async startChallenge(): Promise<void> {
@@ -192,6 +197,7 @@ export default class Level3 extends cc.Component {
         this.rhythmClockActive = false;
         this.currentDetectorAction = "none";
         this.completionHandled = false;
+        this.applyDifficulty(this.normalizeDifficulty(this.difficulty));
         this.rhythmDetector.reset();
         this.raiseHandsDetector.reset();
         this.adapter = new MediaPipePoseAdapter();
@@ -238,6 +244,13 @@ export default class Level3 extends cc.Component {
 
         if (this.panelRoot) this.panelRoot.active = false;
     };
+
+    private onKeyDown(event: cc.Event.EventKeyboard): void {
+        if (!this.running) return;
+        if (event.keyCode !== cc.macro.KEY.escape) return;
+        this.setStatus("已離開姿態偵測，回到地圖");
+        this.closeChallenge();
+    }
 
     update(dt: number): void {
         if (!this.running) return;
@@ -532,11 +545,19 @@ export default class Level3 extends cc.Component {
         }
 
         const parent = this.node.parent || this.node;
-        this.pixelOverlay = new Level3Overlay(parent, this.audioVolume, this.audioEnabled);
+        this.pixelOverlay = new Level3Overlay(parent, {
+            audioVolume: this.audioVolume,
+            audioEnabled: this.audioEnabled,
+            hitSoundUrls: this.getLevel3AudioUrls("accept.wav"),
+            missSoundUrls: this.getLevel3AudioUrls("wrong.wav"),
+            difficulty: this.normalizeDifficulty(this.difficulty),
+            onDifficultyChange: this.onDifficultyChange,
+        });
     }
 
     private updatePixelOverlay(): void {
         if (!this.pixelOverlay) return;
+        this.pixelOverlay.setDifficulty(this.normalizeDifficulty(this.difficulty));
         if (this.phase === "rhythm") {
             const expected = this.rhythmPattern[this.rhythmStep] || "nod";
             this.pixelOverlay.showRhythm(this.rhythmPattern, this.rhythmStep, this.peerRhythmStep, this.localRole);
@@ -552,7 +573,7 @@ export default class Level3 extends cc.Component {
     }
 
     private getRhythmBeatSeconds(): number {
-        const bpm = Math.max(30, this.rhythmBpm || 36);
+        const bpm = Math.max(20, this.rhythmBpm || 30);
         return 60 / bpm;
     }
 
@@ -582,6 +603,46 @@ export default class Level3 extends cc.Component {
         }
         this.postRhythmProgress(0, confidence, true);
         this.updateProgressLabels();
+    }
+
+    private onDifficultyChange = (difficulty: Level3Difficulty): void => {
+        this.applyDifficulty(difficulty);
+        this.rhythmBeatElapsed = 0;
+        this.currentDetectorAction = "none";
+        this.rhythmDetector.reset();
+        this.setStatus("難度已切換為：" + this.difficultyLabel(difficulty));
+        this.updateProgressLabels();
+    };
+
+    private applyDifficulty(difficulty: Level3Difficulty): void {
+        this.difficulty = difficulty;
+        this.rhythmBpm = this.bpmForDifficulty(difficulty);
+        if (this.pixelOverlay) this.pixelOverlay.setDifficulty(difficulty);
+    }
+
+    private normalizeDifficulty(value: string): Level3Difficulty {
+        if (value === "easy" || value === "normal" || value === "hard") return value;
+        return "normal";
+    }
+
+    private bpmForDifficulty(difficulty: Level3Difficulty): number {
+        if (difficulty === "easy") return 24;
+        if (difficulty === "hard") return 36;
+        return 30;
+    }
+
+    private difficultyLabel(difficulty: Level3Difficulty): string {
+        if (difficulty === "easy") return "簡單";
+        if (difficulty === "hard") return "挑戰";
+        return "普通";
+    }
+
+    private getLevel3AudioUrls(fileName: string): string[] {
+        return [
+            "assets/Art/Level3/" + fileName,
+            "./assets/Art/Level3/" + fileName,
+            "/assets/Art/Level3/" + fileName,
+        ];
     }
 
     private patternText(): string {
