@@ -1,4 +1,5 @@
 import EventBus from "../core/EventBus";
+import GhostController from "../ghost/GhostController";
 
 const { ccclass } = cc._decorator;
 
@@ -34,6 +35,8 @@ export default class RiceBallProjectile extends cc.Component {
         if (!this.alive) return;
 
         if (other.node.group === "ghost") {
+            const ghostCtrl = other.node.getComponent(GhostController);
+            if (!ghostCtrl || !ghostCtrl.isChasing()) return;
             EventBus.emit("ghost:hit-by-riceball");
             EventBus.emit("ui:toast", "鬼被飯糰擊中消散了！");
             this.destroyProjectile();

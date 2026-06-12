@@ -81,6 +81,7 @@ export default class GhostChaseManager extends cc.Component {
         EventBus.on("ghost:caught", this.onGhostCaught, this);
         EventBus.on("ghost:hit-by-riceball", this.onGhostHitByRiceBall, this);
 
+        if (this.ghostNodeRef) this.ghostNodeRef.active = false;
         if (this.gameOverOverlay) this.gameOverOverlay.active = false;
 
         const delay = this.minInitialDelay + Math.random() * (this.maxInitialDelay - this.minInitialDelay);

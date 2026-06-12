@@ -34,11 +34,13 @@ export default class RiceBallThrower extends cc.Component {
     private aimIndicator: cc.Node = null;
     private aimGraphics: cc.Graphics = null;
     private dialogueLocked: boolean = false;
+    private canvasNode: cc.Node = null;
 
     onLoad() {
-        cc.systemEvent.on(cc.SystemEvent.EventType.MOUSE_DOWN, this.onMouseDown, this);
-        cc.systemEvent.on(cc.SystemEvent.EventType.MOUSE_MOVE, this.onMouseMove, this);
-        cc.systemEvent.on(cc.SystemEvent.EventType.MOUSE_UP, this.onMouseUp, this);
+        this.canvasNode = cc.Canvas.instance.node;
+        this.canvasNode.on(cc.Node.EventType.MOUSE_DOWN, this.onMouseDown, this);
+        this.canvasNode.on(cc.Node.EventType.MOUSE_MOVE, this.onMouseMove, this);
+        this.canvasNode.on(cc.Node.EventType.MOUSE_UP, this.onMouseUp, this);
         EventBus.on("dialogue:start", this.onDialogueStart, this);
         EventBus.on("dialogue:end", this.onDialogueEnd, this);
 
@@ -50,9 +52,11 @@ export default class RiceBallThrower extends cc.Component {
     }
 
     onDestroy() {
-        cc.systemEvent.off(cc.SystemEvent.EventType.MOUSE_DOWN, this.onMouseDown, this);
-        cc.systemEvent.off(cc.SystemEvent.EventType.MOUSE_MOVE, this.onMouseMove, this);
-        cc.systemEvent.off(cc.SystemEvent.EventType.MOUSE_UP, this.onMouseUp, this);
+        if (this.canvasNode) {
+            this.canvasNode.off(cc.Node.EventType.MOUSE_DOWN, this.onMouseDown, this);
+            this.canvasNode.off(cc.Node.EventType.MOUSE_MOVE, this.onMouseMove, this);
+            this.canvasNode.off(cc.Node.EventType.MOUSE_UP, this.onMouseUp, this);
+        }
         EventBus.off("dialogue:start", this.onDialogueStart, this);
         EventBus.off("dialogue:end", this.onDialogueEnd, this);
     }
@@ -108,8 +112,13 @@ export default class RiceBallThrower extends cc.Component {
 
     private updateAimWorldPos(event: cc.Event.EventMouse): void {
         if (!this.gameCamera) return;
-        const screenPos = cc.v2(event.getLocationX(), event.getLocationY());
-        this.aimWorldPos = this.gameCamera.getScreenToWorldPoint(screenPos);
+        const p = this.gameCamera.getScreenToWorldPoint(event.getLocation());
+        this.aimWorldPos = cc.v2(p.x, p.y);
+    }
+
+    /** 投擲者（玩家）的世界座標 — 本元件可能掛在 (0,0) 的子節點上，必須轉換到世界空間 */
+    private getThrowerWorldPos(): cc.Vec2 {
+        return this.node.convertToWorldSpaceAR(cc.v2(0, 0));
     }
 
     lateUpdate() {
@@ -132,8 +141,9 @@ export default class RiceBallThrower extends cc.Component {
         const g = this.aimGraphics;
         g.clear();
 
-        const dx = this.aimWorldPos.x - this.node.x;
-        const dy = this.aimWorldPos.y - this.node.y;
+        const origin = this.getThrowerWorldPos();
+        const dx = this.aimWorldPos.x - origin.x;
+        const dy = this.aimWorldPos.y - origin.y;
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len < 1) return;
 
@@ -177,8 +187,9 @@ export default class RiceBallThrower extends cc.Component {
         const rm = RoomManager.instance;
         if (!rm) return;
 
-        const dx = this.aimWorldPos.x - this.node.x;
-        const dy = this.aimWorldPos.y - this.node.y;
+        const origin = this.getThrowerWorldPos();
+        const dx = this.aimWorldPos.x - origin.x;
+        const dy = this.aimWorldPos.y - origin.y;
         const len = Math.sqrt(dx * dx + dy * dy);
         if (len < 1) return;
 
@@ -191,7 +202,7 @@ export default class RiceBallThrower extends cc.Component {
         if (this.riceBallSprite) {
             sprite.spriteFrame = this.riceBallSprite;
         }
-        projNode.setContentSize(this.projectileColliderSize, this.projectileColliderSize);
+        projNode.setContentSize(40, 30);
         sprite.sizeMode = cc.Sprite.SizeMode.CUSTOM;
 
         const col = projNode.addComponent(cc.BoxCollider);
@@ -200,7 +211,8 @@ export default class RiceBallThrower extends cc.Component {
         const proj = projNode.addComponent(RiceBallProjectile);
         proj.init(direction, this.projectileSpeed, this.projectileMaxDist);
 
-        projNode.setPosition(this.node.x, this.node.y);
+        // Spawn at the player's world position, expressed in the projectile parent's local space
         projNode.parent = rm.node;
+        projNode.setPosition(rm.node.convertToNodeSpaceAR(origin));
     }
 }
