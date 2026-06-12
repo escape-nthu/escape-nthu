@@ -60,6 +60,9 @@ export default class Level3 extends cc.Component {
     autoStart: boolean = false;
 
     @property
+    keyboardActivationRadius: number = 160;
+
+    @property
     rhythmBpm: number = 30;
 
     @property
@@ -246,10 +249,16 @@ export default class Level3 extends cc.Component {
     };
 
     private onKeyDown(event: cc.Event.EventKeyboard): void {
-        if (!this.running) return;
-        if (event.keyCode !== cc.macro.KEY.escape) return;
-        this.setStatus("已離開姿態偵測，回到地圖");
-        this.closeChallenge();
+        if (this.running) {
+            if (event.keyCode !== cc.macro.KEY.escape) return;
+            this.setStatus("已離開姿態偵測，回到地圖");
+            this.closeChallenge();
+            return;
+        }
+
+        if (event.keyCode === cc.macro.KEY.e && this.isNearLevel3GestureTrigger()) {
+            this.startChallenge();
+        }
     }
 
     update(dt: number): void {
@@ -643,6 +652,36 @@ export default class Level3 extends cc.Component {
             "./assets/Art/Level3/" + fileName,
             "/assets/Art/Level3/" + fileName,
         ];
+    }
+
+    private isNearLevel3GestureTrigger(): boolean {
+        const player = this.findNodeByGroup(cc.director.getScene(), "player");
+        const trigger = this.findNodeByName(cc.director.getScene(), "Level3_gesture");
+        if (!player || !trigger) return false;
+
+        const playerWorld = player.convertToWorldSpaceAR(cc.Vec2.ZERO);
+        const triggerWorld = trigger.convertToWorldSpaceAR(cc.Vec2.ZERO);
+        return playerWorld.sub(triggerWorld).mag() <= this.keyboardActivationRadius;
+    }
+
+    private findNodeByName(root: cc.Node, name: string): cc.Node {
+        if (!root) return null;
+        if (root.name === name) return root;
+        for (let i = 0; i < root.children.length; i += 1) {
+            const found = this.findNodeByName(root.children[i], name);
+            if (found) return found;
+        }
+        return null;
+    }
+
+    private findNodeByGroup(root: cc.Node, group: string): cc.Node {
+        if (!root) return null;
+        if (root.group === group) return root;
+        for (let i = 0; i < root.children.length; i += 1) {
+            const found = this.findNodeByGroup(root.children[i], group);
+            if (found) return found;
+        }
+        return null;
     }
 
     private patternText(): string {
