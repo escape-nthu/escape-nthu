@@ -1,5 +1,6 @@
 import EventBus from "../core/EventBus";
 import GameState from "../core/GameState";
+import Level3Overlay from "./Level3Overlay";
 import MediaPipePoseAdapter from "../vision/MediaPipePoseAdapter";
 import HeadRhythmDetector, { HeadRhythmAction, HeadRhythmFrameResult } from "../vision/HeadRhythmDetector";
 import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsDetector";
@@ -57,6 +58,15 @@ export default class Level3 extends cc.Component {
 
     @property
     autoStart: boolean = false;
+
+    @property
+    rhythmBpm: number = 50;
+
+    @property
+    audioVolume: number = 0.18;
+
+    @property
+    audioEnabled: boolean = true;
 
     @property(cc.Node)
     panelRoot: cc.Node = null;
@@ -121,6 +131,7 @@ export default class Level3 extends cc.Component {
     private rhythmDetector: HeadRhythmDetector = new HeadRhythmDetector();
     private raiseHandsDetector: RaiseHandsDetector = new RaiseHandsDetector();
     private adapter: MediaPipePoseAdapter | null = null;
+    private pixelOverlay: Level3Overlay | null = null;
     private overlay: HTMLDivElement | null = null;
     private canvas: HTMLCanvasElement | null = null;
     private localCount: number = 0;
@@ -134,8 +145,12 @@ export default class Level3 extends cc.Component {
     private localRole: string = "";
     private lastProgressSent: number = -1;
     private lastReadySentAt: number = 0;
+    private rhythmBeatElapsed: number = 0;
+    private rhythmClockActive: boolean = false;
+    private currentDetectorAction: HeadRhythmAction = "none";
     private running: boolean = false;
     private debugFallback: boolean = false;
+    private completionHandled: boolean = false;
 
     onLoad() {
         this.debugFallback = this.isDebugGestureEnabled();
@@ -173,19 +188,27 @@ export default class Level3 extends cc.Component {
         this.peerRhythmStep = 0;
         this.lastProgressSent = -1;
         this.lastReadySentAt = 0;
+        this.rhythmBeatElapsed = 0;
+        this.rhythmClockActive = false;
+        this.currentDetectorAction = "none";
+        this.completionHandled = false;
         this.rhythmDetector.reset();
         this.raiseHandsDetector.reset();
         this.adapter = new MediaPipePoseAdapter();
+        this.createPixelOverlay();
 
         if (this.panelRoot) this.panelRoot.active = true;
         if (this.titleLabel) this.titleLabel.string = "陽台訊號校準";
         this.setStatus("載入姿態辨識，請允許攝影機權限");
         this.updateProgressLabels();
+        this.updatePixelOverlay();
+        if (this.pixelOverlay) this.pixelOverlay.playBeat();
         this.setFallbackVisible(this.debugFallback);
 
         try {
             const video = await this.adapter.start(this.onPoseResult);
             this.attachVideoOverlay(video);
+            this.rhythmClockActive = true;
             this.setStatus("請正對鏡頭，準備完成頭部節奏");
         } catch (error) {
             this.setStatus("攝影機或模型載入失敗，已切換 demo fallback");
@@ -195,6 +218,7 @@ export default class Level3 extends cc.Component {
     }
 
     private closeChallenge = (): void => {
+        this.unschedule(this.closeChallenge);
         this.running = false;
         if (this.adapter) {
             this.adapter.stop();
@@ -207,8 +231,28 @@ export default class Level3 extends cc.Component {
         this.overlay = null;
         this.canvas = null;
 
+        if (this.pixelOverlay) {
+            this.pixelOverlay.destroy();
+            this.pixelOverlay = null;
+        }
+
         if (this.panelRoot) this.panelRoot.active = false;
     };
+
+    update(dt: number): void {
+        if (!this.running) return;
+
+        if (this.rhythmClockActive && this.phase === "rhythm" && this.rhythmStep < this.rhythmTargetSteps) {
+            this.rhythmBeatElapsed += dt;
+            const beatSeconds = this.getRhythmBeatSeconds();
+            if (this.rhythmBeatElapsed >= beatSeconds) {
+                this.handleRhythmMiss("節奏錯過，從第一拍重來", 0.45);
+            }
+        }
+
+        this.updatePixelOverlay();
+        if (this.pixelOverlay) this.pixelOverlay.update(dt);
+    }
 
     private onPoseResult = (result: PoseDetectionResult): void => {
         this.drawPose(result.landmarks);
@@ -220,19 +264,25 @@ export default class Level3 extends cc.Component {
     };
 
     private applyRhythmFrame(frame: HeadRhythmFrameResult): void {
+        this.currentDetectorAction = frame.action;
         this.setStatus(frame.message);
         if (this.rhythmStatusLabel) this.rhythmStatusLabel.string = this.actionLabel(frame.action);
 
         if (frame.justDetected) {
             const expected = this.rhythmPattern[this.rhythmStep] || "nod";
-            if (frame.action === expected) {
+            if (!this.isRhythmHitWindowActive()) {
+                this.handleRhythmMiss("還沒進判定框，從第一拍重來", frame.confidence);
+            } else if (frame.action === expected) {
                 this.rhythmStep = Math.min(this.rhythmTargetSteps, this.rhythmStep + 1);
+                this.rhythmBeatElapsed = 0;
                 this.setStatus("第 " + this.rhythmStep + " 拍成功");
+                if (this.pixelOverlay) {
+                    this.pixelOverlay.flashHit();
+                    this.pixelOverlay.playBeat();
+                }
                 this.postRhythmProgress(this.rhythmStep, frame.confidence, false);
             } else if (frame.action !== "none") {
-                this.rhythmStep = 0;
-                this.setStatus("節奏錯誤，從第一拍重來");
-                this.postRhythmProgress(0, frame.confidence, true);
+                this.handleRhythmMiss("節奏錯誤，從第一拍重來", frame.confidence);
             }
         }
 
@@ -243,6 +293,7 @@ export default class Level3 extends cc.Component {
         this.setStatus(frame.message);
         this.localCount = frame.progress >= 1 ? 1 : 0;
         this.updateProgressLabels();
+        this.updatePixelOverlay();
 
         if (frame.justCompleted && frame.count !== this.lastProgressSent) {
             this.lastProgressSent = frame.count;
@@ -261,6 +312,8 @@ export default class Level3 extends cc.Component {
     private onFallbackCount = (): void => {
         if (this.phase === "rhythm") {
             this.rhythmStep = Math.min(this.rhythmTargetSteps, this.rhythmStep + 1);
+            this.rhythmBeatElapsed = 0;
+            if (this.pixelOverlay) this.pixelOverlay.flashHit();
             this.postRhythmProgress(this.rhythmStep, 1, false);
             this.setStatus("Fallback: Phase 1 +1");
         } else if (this.phase === "raiseHands") {
@@ -274,6 +327,8 @@ export default class Level3 extends cc.Component {
 
     private onFallbackRhythmComplete = (): void => {
         this.rhythmStep = this.rhythmTargetSteps;
+        this.rhythmBeatElapsed = 0;
+        if (this.pixelOverlay) this.pixelOverlay.flashPhaseClear();
         this.postRhythmProgress(this.rhythmStep, 1, false);
         this.setStatus("Fallback: Phase 1 complete");
         this.updateProgressLabels();
@@ -369,7 +424,10 @@ export default class Level3 extends cc.Component {
                 this.peerRhythmStep = this.findPeerRhythmStep(state.gestureChallenge);
                 if (state.gestureChallenge.rhythm.completed && this.phase === "rhythm") {
                     this.phase = "raiseHands";
+                    this.rhythmBeatElapsed = 0;
+                    this.rhythmClockActive = false;
                     this.raiseHandsDetector.reset();
+                    if (this.pixelOverlay) this.pixelOverlay.flashPhaseClear();
                     this.setStatus("Phase 1 完成，請同步舉起雙手");
                 }
             }
@@ -384,10 +442,13 @@ export default class Level3 extends cc.Component {
     }
 
     private onCompleted(): void {
+        if (this.completionHandled) return;
+        this.completionHandled = true;
         this.phase = "completed";
         this.localCount = Math.max(this.localCount, this.targetCount);
         this.updateProgressLabels();
         this.setStatus("同步成功，逃生門已解鎖");
+        if (this.pixelOverlay) this.pixelOverlay.flashComplete();
         if (this.airWallNode) this.airWallNode.active = false;
         if (this.heartCrownNode) this.heartCrownNode.active = true;
         if (this.endingTriggerNode) this.endingTriggerNode.active = true;
@@ -396,7 +457,7 @@ export default class Level3 extends cc.Component {
         }
         EventBus.emit("ui:toast", "逃生門解鎖！");
         EventBus.emit("gesture-level:completed");
-        this.closeChallenge();
+        this.scheduleOnce(this.closeChallenge, 0.9);
     }
 
     private findPeerCount(challenge: GestureChallenge): number {
@@ -458,6 +519,63 @@ export default class Level3 extends cc.Component {
                 ? "保持雙手舉起，3 秒內與隊友同步開門"
                 : "雙手舉過肩膀並維持 2 秒";
         }
+
+        this.updatePixelOverlay();
+    }
+
+    private createPixelOverlay(): void {
+        if (this.pixelOverlay) {
+            this.pixelOverlay.destroy();
+            this.pixelOverlay = null;
+        }
+
+        const parent = this.node.parent || this.node;
+        this.pixelOverlay = new Level3Overlay(parent, this.audioVolume, this.audioEnabled);
+    }
+
+    private updatePixelOverlay(): void {
+        if (!this.pixelOverlay) return;
+        if (this.phase === "rhythm") {
+            const expected = this.rhythmPattern[this.rhythmStep] || "nod";
+            this.pixelOverlay.showRhythm(this.rhythmPattern, this.rhythmStep, this.peerRhythmStep, this.localRole);
+            this.pixelOverlay.updateRhythm(
+                expected,
+                this.getRhythmTimingProgress(),
+                this.isRhythmHitWindowActive(),
+                this.currentDetectorAction,
+            );
+        } else if (this.phase === "raiseHands") {
+            this.pixelOverlay.showRaiseHands(this.localCount >= this.targetCount, this.peerCount >= this.targetCount);
+        }
+    }
+
+    private getRhythmBeatSeconds(): number {
+        const bpm = Math.max(30, this.rhythmBpm || 50);
+        return 60 / bpm;
+    }
+
+    private getRhythmTimingProgress(): number {
+        const progress = this.rhythmBeatElapsed / this.getRhythmBeatSeconds();
+        return Math.max(0, Math.min(1, progress));
+    }
+
+    private isRhythmHitWindowActive(): boolean {
+        const progress = this.getRhythmTimingProgress();
+        return progress >= 0.64 && progress <= 0.96;
+    }
+
+    private handleRhythmMiss(message: string, confidence: number): void {
+        this.rhythmStep = 0;
+        this.rhythmBeatElapsed = 0;
+        this.currentDetectorAction = "none";
+        this.rhythmDetector.reset();
+        this.setStatus(message);
+        if (this.pixelOverlay) {
+            this.pixelOverlay.flashMiss();
+            this.pixelOverlay.playBeat();
+        }
+        this.postRhythmProgress(0, confidence, true);
+        this.updateProgressLabels();
     }
 
     private patternText(): string {
