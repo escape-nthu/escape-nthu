@@ -1812,7 +1812,7 @@
     },
     "_enabled": true,
     "doorId": "d14",
-    "startsLocked": false,
+    "startsLocked": true,
     "lockedMessage": "這扇門被密碼鎖住了。",
     "spawnOffsetX": 0,
     "spawnOffsetY": -50,
@@ -1831,7 +1831,7 @@
   },
   {
     "__type__": "cc.Node",
-    "_name": "d13",
+    "_name": "d12",
     "_objFlags": 0,
     "_parent": {
       "__id__": 48
@@ -1872,7 +1872,7 @@
       "ctor": "Float64Array",
       "array": [
         56.367,
-        -147.755,
+        -121.204,
         0,
         0,
         0,
@@ -1925,7 +1925,7 @@
       "__id__": 53
     },
     "_enabled": true,
-    "doorId": "d14",
+    "doorId": "d12",
     "startsLocked": false,
     "lockedMessage": "這扇門被密碼鎖住了。",
     "spawnOffsetX": 100,

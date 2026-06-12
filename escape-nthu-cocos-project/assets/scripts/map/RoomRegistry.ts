@@ -18,7 +18,7 @@ const rooms: [string, RoomDef][] = [
         prefabPath: "prefabs/rooms/Room_1",
         initialRoom: true,
         doors: [
-            { doorId: "door_1a", connectsTo: { roomId: "Room_2", doorId: "door_1b" } }
+            { doorId: "d12", connectsTo: { roomId: "Room_2", doorId: "d21" } }
         ],
     }],
     ["Room_2", {
@@ -26,8 +26,8 @@ const rooms: [string, RoomDef][] = [
         displayName: "Room_2",
         prefabPath: "prefabs/rooms/Room_2",
         doors: [
-            { doorId: "door_1b", connectsTo: { roomId: "Room_1", doorId: "door_1a" } },
-            { doorId: "door_to_level3", connectsTo: { roomId: "Room_level3", doorId: "door_level3_back" } }
+            { doorId: "d21", connectsTo: { roomId: "Room_1", doorId: "d12" } },
+            { doorId: "d_to_level3", connectsTo: { roomId: "Room_level3", doorId: "d_level3_back" } }
         ],
     }],
     ["Room_level3", {
@@ -35,7 +35,7 @@ const rooms: [string, RoomDef][] = [
         displayName: "陽台同步舉手",
         prefabPath: "prefabs/rooms/Room_level3",
         doors: [
-            { doorId: "door_level3_back", connectsTo: { roomId: "Room_temp_2", doorId: "door_to_level3" } }
+            { doorId: "d_level3_back", connectsTo: { roomId: "Room_2", doorId: "d_to_level3" } }
         ],
     }]
 ];

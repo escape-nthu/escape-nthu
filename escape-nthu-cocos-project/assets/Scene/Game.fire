@@ -340,9 +340,9 @@
     "_opacity": 255,
     "_color": {
       "__type__": "cc.Color",
-      "r": 0,
+      "r": 255,
       "g": 255,
-      "b": 31,
+      "b": 255,
       "a": 255
     },
     "_contentSize": {
@@ -400,7 +400,7 @@
     "_srcBlendFactor": 770,
     "_dstBlendFactor": 771,
     "_spriteFrame": {
-      "__uuid__": "410fb916-8721-4663-bab8-34397391ace7"
+      "__uuid__": "7011ba11-d7a2-4fee-83ce-0f9e9d0d82fd"
     },
     "_type": 0,
     "_sizeMode": 0,
@@ -513,8 +513,8 @@
     },
     "_size": {
       "__type__": "cc.Size",
-      "width": 100,
-      "height": 100
+      "width": 50,
+      "height": 50
     },
     "_id": "57jn39dRZAX7mkaiZvTE2k"
   },
@@ -603,6 +603,7 @@
     "localPlayer": {
       "__id__": 6
     },
+    "transitionLockDuration": 0.4,
     "_id": "9fFHtuvUpDybtlC7b9Hi0+"
   },
   {
@@ -4261,8 +4262,8 @@
       "__id__": 91
     },
     "_enabled": true,
-    "minInitialDelay": 40,
-    "maxInitialDelay": 90,
+    "minInitialDelay": 20,
+    "maxInitialDelay": 30,
     "minCooldown": 45,
     "maxCooldown": 90,
     "maxChaseDuration": 25,
