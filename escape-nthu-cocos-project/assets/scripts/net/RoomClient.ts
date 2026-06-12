@@ -74,6 +74,26 @@ export default class RoomClient extends cc.Component {
         return !!this.socket && this.socket.readyState === WebSocket.OPEN;
     }
 
+    start(): void {
+        if (!this.socket) {
+            this.tryRestoreSession();
+        }
+    }
+
+    private tryRestoreSession(): void {
+        if (typeof localStorage === "undefined") return;
+        const storedRoom = localStorage.getItem("escape-nthu:roomId");
+        const storedPlayer = localStorage.getItem("escape-nthu:playerId");
+        
+        if (storedRoom && storedPlayer) {
+            this.apiBaseUrl = this.normalizeApiBaseUrl(localStorage.getItem("escape-nthu:apiBaseUrl") || this.apiBaseUrl);
+            this.roomId = storedRoom;
+            this.playerId = storedPlayer;
+            this.role = (localStorage.getItem("escape-nthu:role") as PlayerRole) || "A";
+            this.connectSocket();
+        }
+    }
+
     private async onLobbyStart(payload: LobbyStartPayload): Promise<void> {
         this.apiBaseUrl = this.normalizeApiBaseUrl((payload && payload.apiBaseUrl) || this.apiBaseUrl);
 
@@ -144,14 +164,34 @@ export default class RoomClient extends cc.Component {
         this.socket = new WebSocket(wsUrl);
         this.socket.onopen = () => {
             EventBus.emit("network:socket-open", { roomId: this.roomId, playerId: this.playerId, role: this.role });
+            this.startPing();
         };
         this.socket.onmessage = (event) => this.handleSocketMessage(event.data);
         this.socket.onerror = () => {
             EventBus.emit("network:room-error", "WebSocket 連線失敗");
         };
         this.socket.onclose = () => {
+            this.stopPing();
             EventBus.emit("network:socket-closed", { roomId: this.roomId, playerId: this.playerId });
         };
+    }
+
+    private pingTimer: number = 0;
+
+    private startPing(): void {
+        this.stopPing();
+        this.pingTimer = window.setInterval(() => {
+            if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                this.send({ type: "ping" });
+            }
+        }, 20000);
+    }
+
+    private stopPing(): void {
+        if (this.pingTimer) {
+            window.clearInterval(this.pingTimer);
+            this.pingTimer = 0;
+        }
     }
 
     private disconnect(): void {

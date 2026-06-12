@@ -31,11 +31,11 @@ type HeadSample = {
 const DEFAULT_OPTIONS: HeadRhythmDetectorOptions = {
     calibrationMs: 900,
     minVisibility: 0.45,
-    nodThreshold: 0.055,
-    shakeThreshold: 0.06,
-    tiltThreshold: 0.2,
-    neutralThreshold: 0.03,
-    actionCooldownMs: 450,
+    nodThreshold: 0.08,
+    shakeThreshold: 0.09,
+    tiltThreshold: 0.25,
+    neutralThreshold: 0.04,
+    actionCooldownMs: 800,
 };
 
 const NOSE = 0;

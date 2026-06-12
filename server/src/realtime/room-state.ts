@@ -414,12 +414,8 @@ export class InMemoryRoomStore {
   }
 
   private hasGestureRhythmPhaseCleared(room: Room): boolean {
-    return [...room.players.keys()].some((playerId) => {
-      if (!room.players.get(playerId)?.connected) {
-        return false;
-      }
-      return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
-    });
+    const activePlayers = [...room.players.keys()];
+    return this.haveConnectedPlayersCompletedGestureRhythm(room, activePlayers);
   }
 
   private haveConnectedPlayersCompletedGestureRhythm(room: Room, activePlayers: string[]): boolean {

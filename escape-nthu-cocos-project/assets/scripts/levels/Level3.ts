@@ -190,7 +190,7 @@ export default class Level3 extends cc.Component {
         this.bindButton(this.fallbackReadyButton, this.onFallbackReady);
         this.bindButton(this.fallbackCompleteButton, this.onFallbackComplete);
         EventBus.on("gesture-level:start", this.startChallenge, this);
-        EventBus.on("room:state", this.onRoomState, this);
+        EventBus.on("network:room-state", this.onRoomState, this);
         cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
 
         if (this.panelRoot) this.panelRoot.active = false;
@@ -218,7 +218,7 @@ export default class Level3 extends cc.Component {
         this.stopBgm();
         this.closeChallenge();
         EventBus.off("gesture-level:start", this.startChallenge, this);
-        EventBus.off("room:state", this.onRoomState, this);
+        EventBus.off("network:room-state", this.onRoomState, this);
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
     }
 
@@ -789,9 +789,9 @@ export default class Level3 extends cc.Component {
     }
 
     private bpmForDifficulty(difficulty: Level3Difficulty): number {
-        if (difficulty === "easy") return 24;
-        if (difficulty === "hard") return 36;
-        return 30;
+        if (difficulty === "easy") return 20;
+        if (difficulty === "hard") return 30;
+        return 24;
     }
 
     private difficultyLabel(difficulty: Level3Difficulty): string {

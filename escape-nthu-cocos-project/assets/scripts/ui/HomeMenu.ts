@@ -51,14 +51,14 @@ export default class HomeMenu extends cc.Component {
         this.overlay = this.node.getChildByName("HomeMenuOverlay") || new cc.Node("HomeMenuOverlay");
         this.overlay.parent = this.node;
         this.overlay.group = "ui";
-        this.overlay.setContentSize(960, 640);
+        this.overlay.setContentSize(10000, 10000);
         this.overlay.setPosition(0, 0);
         this.overlay.zIndex = 999;
 
         const bg = this.overlay.addComponent(cc.Graphics);
         bg.clear();
         bg.fillColor = cc.color(12, 16, 28, 238);
-        bg.roundRect(-480, -320, 960, 640, 0);
+        bg.roundRect(-5000, -5000, 10000, 10000, 0);
         bg.fill();
 
         this.content = new cc.Node("HomeMenuContent");
