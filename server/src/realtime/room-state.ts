@@ -3,6 +3,8 @@ import { ApiError } from "../errors";
 import type {
   GestureChallengeSnapshot,
   GesturePlayerProgress,
+  GestureRhythmAction,
+  GestureRhythmPlayerProgress,
   LevelId,
   PlayerRole,
   PlayerState,
@@ -27,6 +29,10 @@ type Room = {
     targetCount: number;
     syncWindowMs: number;
     players: Map<string, GesturePlayerProgress>;
+    rhythm: {
+      pattern: GestureRhythmAction[];
+      players: Map<string, GestureRhythmPlayerProgress>;
+    };
     completed: boolean;
   };
   dialogueTurns: Map<string, number>;
@@ -34,6 +40,7 @@ type Room = {
 
 const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ALL_LEVELS: LevelId[] = ["level-01", "level-02", "level-03"];
+const LEVEL_03_RHYTHM_PATTERN: GestureRhythmAction[] = ["nod", "shake", "nod", "nod"];
 
 export class InMemoryRoomStore {
   private readonly rooms = new Map<string, Room>();
@@ -57,6 +64,10 @@ export class InMemoryRoomStore {
         targetCount: 1,
         syncWindowMs: 3000,
         players: new Map(),
+        rhythm: {
+          pattern: LEVEL_03_RHYTHM_PATTERN,
+          players: new Map(),
+        },
         completed: false,
       },
       dialogueTurns: new Map(),
@@ -154,6 +165,33 @@ export class InMemoryRoomStore {
       count: nextCount,
       confidence,
       readyAt: previous?.readyAt,
+    });
+    this.touch(room);
+    return this.snapshot(roomId);
+  }
+
+  updateGestureRhythmProgress(
+    roomId: string,
+    playerId: string,
+    step: number,
+    confidence: number,
+    mistake = false,
+  ): RoomStateSnapshot {
+    const room = this.requireRoom(roomId);
+    this.getPlayer(roomId, playerId);
+    const previous = room.gestureChallenge.rhythm.players.get(playerId);
+    const targetSteps = room.gestureChallenge.rhythm.pattern.length;
+    const nextStep = previous?.completed
+      ? targetSteps
+      : Math.max(0, Math.min(targetSteps, Math.floor(step)));
+    const completed = nextStep >= targetSteps;
+
+    room.gestureChallenge.rhythm.players.set(playerId, {
+      step: nextStep,
+      confidence,
+      completed,
+      mistakes: (previous?.mistakes ?? 0) + (mistake ? 1 : 0),
+      updatedAt: new Date().toISOString(),
     });
     this.touch(room);
     return this.snapshot(roomId);
@@ -259,6 +297,10 @@ export class InMemoryRoomStore {
       return;
     }
 
+    if (!this.isGestureRhythmComplete(room, activePlayers)) {
+      return;
+    }
+
     const readyPlayers = activePlayers
       .map((playerId) => room.gestureChallenge.players.get(playerId))
       .filter((progress): progress is GesturePlayerProgress => {
@@ -306,7 +348,25 @@ export class InMemoryRoomStore {
       players: Object.fromEntries(
         [...room.gestureChallenge.players.entries()].sort(([a], [b]) => a.localeCompare(b)),
       ),
+      rhythm: {
+        pattern: room.gestureChallenge.rhythm.pattern,
+        targetSteps: room.gestureChallenge.rhythm.pattern.length,
+        players: Object.fromEntries(
+          [...room.gestureChallenge.rhythm.players.entries()].sort(([a], [b]) => a.localeCompare(b)),
+        ),
+        completed: this.isGestureRhythmComplete(room, [...room.players.keys()]),
+      },
       completed: room.gestureChallenge.completed,
     };
+  }
+
+  private isGestureRhythmComplete(room: Room, activePlayers: string[]): boolean {
+    if (activePlayers.length < 2) {
+      return false;
+    }
+
+    return activePlayers.every((playerId) => {
+      return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
+    });
   }
 }

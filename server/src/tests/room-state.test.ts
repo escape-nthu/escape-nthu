@@ -31,14 +31,14 @@ describe("InMemoryRoomStore", () => {
     expect(state.escaped).toBe(true);
   });
 
-  it("requires two raised-hands ready players inside the gesture sync window", () => {
+  it("requires rhythm completion before raised-hands ready inside the sync window", () => {
     const store = new InMemoryRoomStore();
     const created = store.createRoom("A");
     const joined = store.joinRoom(created.roomId, "B");
 
     store.updateGestureProgress(created.roomId, created.player.playerId, 1, 0.9);
     store.updateGestureProgress(created.roomId, joined.player.playerId, 1, 0.88);
-    const firstReady = store.markGestureReady(
+    store.markGestureReady(
       created.roomId,
       created.player.playerId,
       0.91,
@@ -51,8 +51,26 @@ describe("InMemoryRoomStore", () => {
       new Date("2026-06-12T12:00:02.000Z"),
     );
 
-    expect(firstReady.completedLevels).not.toContain("level-03");
-    expect(secondReady.completedLevels).toContain("level-03");
-    expect(secondReady.gestureChallenge.completed).toBe(true);
+    expect(secondReady.completedLevels).not.toContain("level-03");
+
+    store.updateGestureRhythmProgress(created.roomId, created.player.playerId, 4, 0.9);
+    const rhythmState = store.updateGestureRhythmProgress(created.roomId, joined.player.playerId, 4, 0.88);
+    expect(rhythmState.gestureChallenge.rhythm.completed).toBe(true);
+
+    store.markGestureReady(
+      created.roomId,
+      created.player.playerId,
+      0.91,
+      new Date("2026-06-12T12:00:04.000Z"),
+    );
+    const completed = store.markGestureReady(
+      created.roomId,
+      joined.player.playerId,
+      0.89,
+      new Date("2026-06-12T12:00:06.000Z"),
+    );
+
+    expect(completed.completedLevels).toContain("level-03");
+    expect(completed.gestureChallenge.completed).toBe(true);
   });
 });

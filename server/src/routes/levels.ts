@@ -64,6 +64,29 @@ export async function registerLevelRoutes(app: FastifyInstance, deps: LevelRoute
     };
   });
 
+  app.post("/api/levels/gesture/rhythm/progress", async (request) => {
+    const body = request.body as Record<string, unknown>;
+    const roomId = assertString(body?.roomId, "roomId");
+    const playerId = assertString(body?.playerId, "playerId");
+    const step = assertNumber(body?.step, "step");
+    const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
+    const mistake = body?.mistake === true;
+    const state = deps.store.updateGestureRhythmProgress(roomId, playerId, step, confidence, mistake);
+
+    deps.gateway.broadcast(roomId, {
+      type: "room:state",
+      payload: state,
+    });
+
+    return {
+      accepted: true,
+      targetSteps: state.gestureChallenge.rhythm.targetSteps,
+      playerProgress: state.gestureChallenge.rhythm.players[playerId],
+      rhythmCompleted: state.gestureChallenge.rhythm.completed,
+      state,
+    };
+  });
+
   app.post("/api/levels/gesture/ready", async (request) => {
     const body = request.body as Record<string, unknown>;
     const roomId = assertString(body?.roomId, "roomId");
