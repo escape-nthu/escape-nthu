@@ -704,9 +704,9 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 ---
 
-## 陽台同步舉手關卡
+## 陽台兩階段手勢關卡
 
-第三關使用 `assets/scripts/levels/Level3.ts` 管理 UI、MediaPipe、雙手舉起偵測與後端同步。
+第三關使用 `assets/scripts/levels/Level3.ts` 管理 UI、MediaPipe、頭部節奏、雙手舉起偵測與後端同步。
 
 ### 節點接線
 
@@ -719,8 +719,12 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 | `Final Door Id` | 完成後呼叫 `GameState.unlockDoor()` 的門 ID，預設 `final-exit-door` |
 | `Panel Root` | 第三關面板根節點 |
 | `Status/Count/Peer/Sync Label` | 顯示偵測狀態、個人次數、隊友次數與同步提示 |
+| `Phase/Beat/Pattern/Rhythm Status Label` | 顯示 Phase 1/2、目前拍點、節奏提示與偵測結果 |
+| `Air Wall Node` | 通關後關閉的中央空氣牆 |
+| `Heart Crown Node` | 通關後顯示的愛心皇冠 |
+| `Ending Trigger Node` | 通關後啟用的結局入口或互動點 |
 | `Start/Close Button` | 開始與關閉關卡 |
-| `Fallback Controls` | debug/failure 時顯示的手動 +1 / Ready / Complete 控制 |
+| `Fallback Controls` | debug/failure 時顯示的 Phase1 +1 / Phase1 Complete / Ready / Complete 控制 |
 
 房間內的陽台互動物件可掛 `GestureLevelTrigger`，玩家按 E 後 emit `gesture-level:start` 開啟面板。
 
@@ -728,9 +732,25 @@ Flags 不只對話使用，puzzle、ghost 等系統也可以查詢。對話的 c
 
 - `MediaPipePoseAdapter` 透過 CDN module script 載入 `@mediapipe/tasks-vision`，避免 Cocos 2.4 直接 import ESM。
 - webcam 預覽與骨架點使用 DOM overlay 疊在 Cocos canvas 右上角，關卡關閉時會清除。
-- `RaiseHandsDetector` 只吃 normalized landmarks，使用左右肩膀與左右手腕做舉手狀態判定。
+- `HeadRhythmDetector` 只吃 normalized landmarks，使用鼻子與左右肩膀做點頭 / 搖頭判定。
+- `RaiseHandsDetector` 使用左右肩膀與左右手腕做舉手狀態判定。
 - URL 帶 `?debugGesture=1`，或攝影機/模型載入失敗時，顯示 fallback controls，確保 demo 可以完成。
-- 完成條件：每位玩家雙手舉過肩膀並維持約 2 秒，兩人 3 秒內同步 ready；後端完成 `level-03` 後解鎖逃生門。
+- 完成條件：兩人先完成 `點頭 → 搖頭 → 點頭 → 點頭`，再雙手舉過肩膀並維持約 2 秒；後端完成 `level-03` 後關閉空氣牆、顯示皇冠並解鎖逃生門。
+
+### 房間節點建議
+
+在 `Room_level3.prefab` 內建立：
+
+```text
+Walls
+└── AirWallCenter        group=wall + BoxCollider，擋住中央會合缺口
+
+Decorations
+└── HeartCrown           Sprite，一開始 active=false
+
+Interactables 或 Doors
+└── EndingTrigger        通關後 active=true，接最後勝利影片或 Result scene
+```
 
 ---
 

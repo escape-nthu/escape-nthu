@@ -232,7 +232,31 @@ server/
 }
 ```
 
-### 回報手勢關卡進度
+### 回報手勢關卡 Phase 1 節奏進度
+
+`POST /api/levels/gesture/rhythm/progress`
+
+```json
+{
+  "roomId": "ABCD",
+  "playerId": "p_456",
+  "step": 2,
+  "confidence": 0.82,
+  "mistake": false
+}
+```
+
+回應：
+
+```json
+{
+  "accepted": true,
+  "targetSteps": 4,
+  "rhythmCompleted": false
+}
+```
+
+### 回報手勢關卡 Phase 2 舉手進度
 
 `POST /api/levels/gesture/progress`
 
@@ -270,7 +294,7 @@ server/
 }
 ```
 
-兩位玩家都完成雙手舉起 ready，且 ready 時間差在 3 秒內時完成第三關：
+兩位玩家都完成 Phase 1 節奏，且 Phase 2 雙手舉起 ready 時間差在 3 秒內時完成第三關：
 
 ```json
 {
@@ -329,6 +353,12 @@ type RoomState = {
     targetCount: number;
     syncWindowMs: number;
     players: Record<string, { count: number; confidence: number; readyAt?: string }>;
+    rhythm: {
+      pattern: Array<"nod" | "shake">;
+      targetSteps: number;
+      players: Record<string, { step: number; confidence: number; completed: boolean; mistakes: number }>;
+      completed: boolean;
+    };
     completed: boolean;
   };
   ghostState: GhostState;
@@ -354,10 +384,11 @@ Root
 
 - 使用瀏覽器攝影機輸入，只在前端做姿態辨識，避免傳送影像到後端。
 - MVP 使用 MediaPipe Pose CDN 快速整合；Cocos 透過 adapter 取得 normalized landmarks，不直接 import MediaPipe ESM。
-- 指定動作為雙手舉起：以肩膀與手腕關鍵點判定雙手是否高於肩膀。
-- 每位玩家雙手舉起維持約 2 秒後達成 ready，兩人需在 3 秒內同步 ready，後端完成 `level-03`。
-- 後端只接收 count、readyAt 與 confidence，不保存影像。
-- Demo fallback：若攝影機或模型失敗，或 URL 帶 `?debugGesture=1`，顯示手動 +1 / Ready / Complete 控制。
+- Phase 1 指定節奏為 `點頭、搖頭、點頭、點頭`：以鼻子相對肩膀中心的位移判定 nod / shake。
+- Phase 2 指定動作為雙手舉起：以肩膀與手腕關鍵點判定雙手是否高於肩膀。
+- 兩位玩家完成 Phase 1 後，Phase 2 才能用同步 ready 完成 `level-03`。
+- 後端只接收節奏 step、舉手 count、readyAt 與 confidence，不保存影像。
+- Demo fallback：若攝影機或模型失敗，或 URL 帶 `?debugGesture=1`，顯示 Phase1 +1 / Phase1 Complete / Ready / Complete 控制。
 
 ## LLM / Prompt Injection 關卡設計
 
