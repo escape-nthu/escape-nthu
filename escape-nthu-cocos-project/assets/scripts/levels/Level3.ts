@@ -1,7 +1,7 @@
 import EventBus from "../core/EventBus";
 import GameState from "../core/GameState";
 import MediaPipePoseAdapter from "../vision/MediaPipePoseAdapter";
-import SquatDetector, { SquatFrameResult } from "../vision/SquatDetector";
+import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsDetector";
 import { PoseDetectionResult, PoseLandmark } from "../vision/VisionTypes";
 
 const { ccclass, property } = cc._decorator;
@@ -78,7 +78,7 @@ export default class Level3 extends cc.Component {
     @property(cc.Node)
     fallbackCompleteButton: cc.Node = null;
 
-    private detector: SquatDetector = new SquatDetector();
+    private detector: RaiseHandsDetector = new RaiseHandsDetector();
     private adapter: MediaPipePoseAdapter | null = null;
     private overlay: HTMLDivElement | null = null;
     private canvas: HTMLCanvasElement | null = null;
@@ -126,7 +126,7 @@ export default class Level3 extends cc.Component {
         this.adapter = new MediaPipePoseAdapter();
 
         if (this.panelRoot) this.panelRoot.active = true;
-        if (this.titleLabel) this.titleLabel.string = "陽台同步深蹲";
+        if (this.titleLabel) this.titleLabel.string = "陽台同步舉手";
         this.setStatus("載入姿態辨識，請允許攝影機權限");
         this.updateProgressLabels();
         this.setFallbackVisible(this.debugFallback);
@@ -134,7 +134,7 @@ export default class Level3 extends cc.Component {
         try {
             const video = await this.adapter.start(this.onPoseResult);
             this.attachVideoOverlay(video);
-            this.setStatus("請站直校準姿勢");
+            this.setStatus("請站在鏡頭前，準備同步舉起雙手");
         } catch (error) {
             this.setStatus("攝影機或模型載入失敗，已切換 demo fallback");
             this.setFallbackVisible(true);
@@ -165,8 +165,9 @@ export default class Level3 extends cc.Component {
         this.applyFrame(frame);
     };
 
-    private applyFrame(frame: SquatFrameResult): void {
+    private applyFrame(frame: RaiseHandsFrameResult): void {
         this.setStatus(frame.message);
+        this.localCount = frame.progress >= 1 ? 1 : 0;
         this.updateProgressLabels();
 
         if (frame.justCompleted && frame.count !== this.lastProgressSent) {
@@ -174,7 +175,7 @@ export default class Level3 extends cc.Component {
             this.postGestureProgress(frame.count, frame.confidence);
         }
 
-        if (frame.count >= this.targetCount && frame.ready) {
+        if (frame.ready) {
             const now = Date.now();
             if (now - this.lastReadySentAt > 1000) {
                 this.lastReadySentAt = now;
@@ -184,10 +185,10 @@ export default class Level3 extends cc.Component {
     }
 
     private onFallbackCount = (): void => {
-        this.localCount += 1;
+        this.localCount = 1;
         this.detector.reset();
         this.postGestureProgress(this.localCount, 1);
-        this.setStatus("Fallback: 有效深蹲 +1");
+        this.setStatus("Fallback: 已達成舉手姿勢");
         this.updateProgressLabels();
     };
 
@@ -284,15 +285,15 @@ export default class Level3 extends cc.Component {
 
     private updateProgressLabels(): void {
         if (this.countLabel) {
-            this.countLabel.string = "你：" + Math.min(this.localCount, this.targetCount) + " / " + this.targetCount;
+            this.countLabel.string = "你：" + (this.localCount >= this.targetCount ? "Ready" : "等待舉手");
         }
         if (this.peerLabel) {
-            this.peerLabel.string = "隊友：" + Math.min(this.peerCount, this.targetCount) + " / " + this.targetCount;
+            this.peerLabel.string = "隊友：" + (this.peerCount >= this.targetCount ? "Ready" : "等待同步");
         }
         if (this.syncLabel) {
             this.syncLabel.string = this.localCount >= this.targetCount
-                ? "達標後一起蹲下，3 秒內同步開門"
-                : "完成 " + this.targetCount + " 次後進入同步階段";
+                ? "保持雙手舉起，3 秒內與隊友同步開門"
+                : "雙手舉過肩膀並維持 2 秒";
         }
     }
 

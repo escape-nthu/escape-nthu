@@ -32,7 +32,7 @@ const rooms: [string, RoomDef][] = [
     }],
     ["Room_level3", {
         roomId: "Room_level3",
-        displayName: "陽台同步深蹲",
+        displayName: "陽台同步舉手",
         prefabPath: "prefabs/rooms/Room_level3",
         doors: [
             { doorId: "door_level3_back", connectsTo: { roomId: "Room_temp_2", doorId: "door_to_level3" } }
