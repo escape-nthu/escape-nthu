@@ -8,6 +8,7 @@ type MenuMode = "home" | "auth" | "settings";
 const STORAGE_VOLUME = "escape-nthu:volume";
 const STORAGE_AUDIO_ENABLED = "escape-nthu:audioEnabled";
 const STORAGE_API_BASE = "escape-nthu:apiBaseUrl";
+const DEFAULT_API_BASE_URL = "https://escape-nthu-server-vcuhs5ugda-de.a.run.app";
 
 @ccclass
 export default class HomeMenu extends cc.Component {
@@ -177,7 +178,7 @@ export default class HomeMenu extends cc.Component {
     }
 
     private getApiBaseUrl(): string {
-        return (this.apiBaseEdit && this.apiBaseEdit.string.trim()) || this.loadString(STORAGE_API_BASE, "http://localhost:8787");
+        return (this.apiBaseEdit && this.apiBaseEdit.string.trim()) || this.loadString(STORAGE_API_BASE, DEFAULT_API_BASE_URL);
     }
 
     private getRoomId(): string {
@@ -194,7 +195,7 @@ export default class HomeMenu extends cc.Component {
             }
         }
 
-        this.apiBaseEdit = this.createEditBox("後端 API URL", this.loadString(STORAGE_API_BASE, "http://localhost:8787"), 118, false);
+        this.apiBaseEdit = this.createEditBox("後端 API URL", this.loadString(STORAGE_API_BASE, DEFAULT_API_BASE_URL), 118, false);
         this.roomEdit = this.createEditBox("房號（空白建立新房）", this.loadString("escape-nthu:roomId", ""), 64, false);
     }
 

@@ -13,11 +13,12 @@ export type AuthResult = {
 const STORAGE_API_KEY = "escape-nthu:firebaseApiKey";
 const STORAGE_SESSION = "escape-nthu:authSession";
 const FIREBASE_AUTH_BASE = "https://identitytoolkit.googleapis.com/v1";
+const DEFAULT_FIREBASE_API_KEY = "AIzaSyCh2lOaPHjid6C18R7D52gT7-wUkkkIpsA";
 
 export default class FirebaseAuthClient {
     static getConfiguredApiKey(): string {
-        if (typeof localStorage === "undefined") return "";
-        return localStorage.getItem(STORAGE_API_KEY) || "";
+        if (typeof localStorage === "undefined") return DEFAULT_FIREBASE_API_KEY;
+        return localStorage.getItem(STORAGE_API_KEY) || DEFAULT_FIREBASE_API_KEY;
     }
 
     static saveApiKey(apiKey: string): void {

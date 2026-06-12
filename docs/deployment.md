@@ -96,7 +96,7 @@ gcloud run services update escape-nthu-server \
 https://escape-nthu-server-xxxxx-de.a.run.app
 ```
 
-Cocos 首頁的「後端 API URL」填 Cloud Run 的 HTTPS URL。前端會自動把 WebSocket 轉成 `wss://.../ws`。
+Cocos 首頁的「後端 API URL」預設已填 Cloud Run 的 HTTPS URL。前端會自動把 WebSocket 轉成 `wss://.../ws`。
 
 Cloud Run WebSocket 注意事項：
 
@@ -118,8 +118,8 @@ gcloud run services update escape-nthu-server \
 2. 左側 Authentication -> Sign-in method。
 3. 啟用 Email/Password provider。
 4. Project settings -> General -> Your apps，新增 Web app 或使用現有 Web app。
-5. 複製 `apiKey`。
-6. 開遊戲首頁，在「註冊」或「登入」頁把 `apiKey` 貼到 Firebase Web API Key。
+5. 複製 `apiKey`。目前前端已預設使用 `escape-nthu` Firebase project 的 Web API Key。
+6. 開遊戲首頁，進入「註冊」或「登入」頁。
 7. 輸入 Email 和至少 6 碼密碼後註冊/登入。
 
 ## 5. 目前安全邊界
