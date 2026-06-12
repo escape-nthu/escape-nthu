@@ -34,13 +34,15 @@ type Room = {
       players: Map<string, GestureRhythmPlayerProgress>;
     };
     completed: boolean;
+    energy: number;
+    lastEnergyUpdatedAt?: number;
   };
   dialogueTurns: Map<string, number>;
 };
 
 const ROOM_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const ALL_LEVELS: LevelId[] = ["level-01", "level-02", "level-03"];
-const LEVEL_03_RHYTHM_PATTERN: GestureRhythmAction[] = ["nod", "shake", "nod", "nod"];
+const LEVEL_03_RHYTHM_PATTERN: GestureRhythmAction[] = ["nod", "tilt", "nod", "nod"];
 
 export class InMemoryRoomStore {
   private readonly rooms = new Map<string, Room>();
@@ -69,6 +71,7 @@ export class InMemoryRoomStore {
           players: new Map(),
         },
         completed: false,
+        energy: 0,
       },
       dialogueTurns: new Map(),
     };
@@ -108,6 +111,14 @@ export class InMemoryRoomStore {
     const player = this.getPlayer(roomId, playerId);
     player.connected = connected;
     player.lastSeenAt = new Date().toISOString();
+    
+    if (!connected) {
+      const progress = room.gestureChallenge.players.get(playerId);
+      if (progress) {
+        progress.isRaising = false;
+      }
+    }
+
     this.touch(room);
     return player;
   }
@@ -156,7 +167,13 @@ export class InMemoryRoomStore {
     return this.snapshot(roomId);
   }
 
-  updateGestureProgress(roomId: string, playerId: string, count: number, confidence: number): RoomStateSnapshot {
+  updateGestureProgress(
+    roomId: string,
+    playerId: string,
+    count: number,
+    confidence: number,
+    isRaising = false,
+  ): RoomStateSnapshot {
     const room = this.requireRoom(roomId);
     this.getPlayer(roomId, playerId);
     const previous = room.gestureChallenge.players.get(playerId);
@@ -165,7 +182,42 @@ export class InMemoryRoomStore {
       count: nextCount,
       confidence,
       readyAt: previous?.readyAt,
+      isRaising,
     });
+
+    const now = Date.now();
+    if (room.gestureChallenge.lastEnergyUpdatedAt === undefined) {
+      room.gestureChallenge.lastEnergyUpdatedAt = now;
+    } else {
+      const dt = Math.max(0, Math.min(1.0, (now - room.gestureChallenge.lastEnergyUpdatedAt) / 1000));
+      room.gestureChallenge.lastEnergyUpdatedAt = now;
+
+      const activePlayers = [...room.players.values()]
+        .filter((p) => p.connected)
+        .map((p) => p.playerId);
+      let allRaising = false;
+      if (activePlayers.length > 0) {
+        allRaising = activePlayers.every((pId) => {
+          return room.gestureChallenge.players.get(pId)?.isRaising === true;
+        });
+      }
+
+      const chargeRate = 100 / 6; // 6 seconds to full charge (16.67% per sec)
+      const decayRate = 100 / 6;  // 6 seconds to empty (16.67% per sec)
+
+      if (allRaising) {
+        room.gestureChallenge.energy = Math.min(100, room.gestureChallenge.energy + dt * chargeRate);
+      } else {
+        room.gestureChallenge.energy = Math.max(0, room.gestureChallenge.energy - dt * decayRate);
+      }
+
+      if (room.gestureChallenge.energy >= 100 && !room.gestureChallenge.completed) {
+        room.gestureChallenge.completed = true;
+        room.motionChallenge.completed = true;
+        room.completedLevels.add("level-03");
+      }
+    }
+
     this.touch(room);
     return this.snapshot(roomId);
   }
@@ -357,15 +409,17 @@ export class InMemoryRoomStore {
         completed: this.isGestureRhythmComplete(room, [...room.players.keys()]),
       },
       completed: room.gestureChallenge.completed,
+      energy: room.gestureChallenge.energy,
     };
   }
 
   private isGestureRhythmComplete(room: Room, activePlayers: string[]): boolean {
-    if (activePlayers.length < 2) {
+    const connectedPlayers = activePlayers.filter((pId) => room.players.get(pId)?.connected);
+    if (connectedPlayers.length < 2) {
       return false;
     }
 
-    return activePlayers.every((playerId) => {
+    return connectedPlayers.every((playerId) => {
       return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
     });
   }

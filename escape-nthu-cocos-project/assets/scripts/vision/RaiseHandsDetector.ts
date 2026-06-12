@@ -57,6 +57,7 @@ export default class RaiseHandsDetector {
         if (!handsRaised) {
             this.phase = "searching";
             this.holdStartedAt = 0;
+            this.readyValue = 0;
             return this.frame(false, 0, sample.confidence, "請同步舉起雙手");
         }
 

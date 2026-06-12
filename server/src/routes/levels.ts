@@ -49,7 +49,8 @@ export async function registerLevelRoutes(app: FastifyInstance, deps: LevelRoute
     const playerId = assertString(body?.playerId, "playerId");
     const count = assertNumber(body?.count, "count");
     const confidence = typeof body?.confidence === "number" ? body.confidence : 1;
-    const state = deps.store.updateGestureProgress(roomId, playerId, count, confidence);
+    const isRaising = body?.isRaising === true;
+    const state = deps.store.updateGestureProgress(roomId, playerId, count, confidence, isRaising);
 
     deps.gateway.broadcast(roomId, {
       type: "room:state",

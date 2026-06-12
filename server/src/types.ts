@@ -21,9 +21,10 @@ export type GesturePlayerProgress = {
   count: number;
   confidence: number;
   readyAt?: string;
+  isRaising?: boolean;
 };
 
-export type GestureRhythmAction = "nod" | "shake";
+export type GestureRhythmAction = "nod" | "tilt";
 
 export type GestureRhythmPlayerProgress = {
   step: number;
@@ -44,6 +45,7 @@ export type GestureChallengeSnapshot = {
     completed: boolean;
   };
   completed: boolean;
+  energy?: number;
 };
 
 export type RoomStateSnapshot = {

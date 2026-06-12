@@ -1,14 +1,14 @@
 import { HeadRhythmAction } from "../vision/HeadRhythmDetector";
 
 type OverlayPhase = "rhythm" | "raiseHands" | "completed";
-type AudioCue = "beat" | "hit" | "miss" | "phaseClear" | "complete";
+type AudioCue = "beat" | "hit" | "miss" | "phaseClear" | "complete" | "bgm";
 export type Level3Difficulty = "easy" | "normal" | "hard";
 
 export type Level3OverlayOptions = {
     audioVolume: number;
     audioEnabled: boolean;
-    hitSoundUrls: string[];
-    missSoundUrls: string[];
+    hitClip: cc.AudioClip | null;
+    missClip: cc.AudioClip | null;
     difficulty: Level3Difficulty;
     onDifficultyChange: (difficulty: Level3Difficulty) => void;
 };
@@ -31,6 +31,10 @@ export default class Level3Overlay {
     private hitWindowActive: boolean = false;
     private localReady: boolean = false;
     private peerReady: boolean = false;
+    private localVisualCharge: number = 0;
+    private peerVisualCharge: number = 0;
+    private syncEnergy: number = 0;
+    private visualEnergy: number = 0;
     private flashTimer: number = 0;
     private flashColor: cc.Color = cc.color(255, 255, 255, 0);
     private scanTime: number = 0;
@@ -48,13 +52,14 @@ export default class Level3Overlay {
         this.audio = new Level3AudioCue(
             options.audioVolume,
             options.audioEnabled,
-            options.hitSoundUrls,
-            options.missSoundUrls,
+            options.hitClip,
+            options.missClip,
         );
         this.difficulty = options.difficulty;
         this.onDifficultyChange = options.onDifficultyChange;
         this.createLabels();
     }
+
 
     destroy(): void {
         this.audio.close();
@@ -65,6 +70,12 @@ export default class Level3Overlay {
         this.refreshViewport();
         this.scanTime += dt;
         this.flashTimer = Math.max(0, this.flashTimer - dt);
+        
+        // Smoothly interpolate visual charges
+        this.localVisualCharge = cc.misc.lerp(this.localVisualCharge, this.localReady ? 1.0 : 0.0, dt * 8);
+        this.peerVisualCharge = cc.misc.lerp(this.peerVisualCharge, this.peerReady ? 1.0 : 0.0, dt * 8);
+        this.visualEnergy = cc.misc.lerp(this.visualEnergy, this.syncEnergy / 100, dt * 5);
+
         this.draw();
     }
 
@@ -74,6 +85,14 @@ export default class Level3Overlay {
         this.currentStep = currentStep;
         this.peerStep = peerStep;
         this.role = role;
+
+        const leftLabel = this.labels.left;
+        if (leftLabel) leftLabel.node.setPosition(-330, -230);
+        const rightLabel = this.labels.right;
+        if (rightLabel) rightLabel.node.setPosition(330, -230);
+        const centerLabel = this.labels.center;
+        if (centerLabel) centerLabel.node.setPosition(0, -230);
+
         this.updateRhythmLabels();
     }
 
@@ -90,10 +109,19 @@ export default class Level3Overlay {
         this.updateRhythmLabels();
     }
 
-    showRaiseHands(localReady: boolean, peerReady: boolean): void {
+    showRaiseHands(localReady: boolean, peerReady: boolean, energy: number = 0): void {
         this.phase = "raiseHands";
         this.localReady = localReady;
         this.peerReady = peerReady;
+        this.syncEnergy = energy;
+
+        const leftLabel = this.labels.left;
+        if (leftLabel) leftLabel.node.setPosition(-180, 70);
+        const rightLabel = this.labels.right;
+        if (rightLabel) rightLabel.node.setPosition(180, 70);
+        const centerLabel = this.labels.center;
+        if (centerLabel) centerLabel.node.setPosition(0, 110);
+
         this.updateRaiseHandsLabels();
     }
 
@@ -135,14 +163,14 @@ export default class Level3Overlay {
 
     private createLabels(): void {
         this.labels.title = this.createLabel("title", "陽台訊號校準", 32, 0, 286, cc.color(239, 255, 255));
-        this.labels.subtitle = this.createLabel("subtitle", "跟著節拍完成點頭與搖頭", 16, 0, 246, cc.color(129, 255, 226));
+        this.labels.subtitle = this.createLabel("subtitle", "跟著節拍完成點頭與歪頭", 16, 0, 246, cc.color(129, 255, 226));
         this.labels.left = this.createLabel("left", "", 18, -330, -230, cc.color(255, 216, 92));
         this.labels.right = this.createLabel("right", "", 18, 330, -230, cc.color(255, 124, 178));
         this.labels.center = this.createLabel("center", "", 24, 0, -230, cc.color(255, 255, 255));
         this.labels.status = this.createLabel("status", "", 18, 0, 160, cc.color(189, 228, 255));
         this.labels.hint = this.createLabel("hint", "", 15, 0, -304, cc.color(190, 198, 215));
         this.labels.nodLane = this.createLabel("nodLane", "點頭", 14, -406, 52, cc.color(85, 255, 209), 84);
-        this.labels.shakeLane = this.createLabel("shakeLane", "搖頭", 14, -406, -52, cc.color(255, 124, 178), 84);
+        this.labels.tiltLane = this.createLabel("tiltLane", "歪頭", 14, -406, -52, cc.color(255, 124, 178), 84);
         this.labels.difficultyTitle = this.createLabel("difficultyTitle", "難度", 14, 246, 286, cc.color(190, 198, 215), 54);
         this.createDifficultyButton("easy", "簡單", 302, 286, cc.color(85, 255, 209));
         this.createDifficultyButton("normal", "普通", 362, 286, cc.color(255, 216, 92));
@@ -203,10 +231,19 @@ export default class Level3Overlay {
     private updateRaiseHandsLabels(): void {
         this.setLabel("title", "同步之門");
         this.setLabel("subtitle", "第二階段 / 雙手舉起");
-        this.setLabel("left", "你 " + (this.localReady ? "準備完成" : "充能中"));
-        this.setLabel("right", "隊友 " + (this.peerReady ? "準備完成" : "等待中"));
-        this.setLabel("center", this.localReady ? "保持訊號" : "舉起雙手");
-        this.setLabel("status", "兩位玩家需要在 3 秒內同步完成");
+        this.setLabel("left", "你：" + (this.localReady ? "已舉起" : "未舉起"));
+
+        if (this.difficulty === "demo") {
+            this.setLabel("right", "");
+            this.setLabel("status", "保持舉起雙手，直到蓄能完成");
+        } else {
+            this.setLabel("right", "隊友：" + (this.peerReady ? "已舉起" : "未舉起"));
+            this.setLabel("status", "兩位玩家需要同時保持舉起，直到蓄能完成");
+        }
+        
+        const energyText = "蓄能進度: " + Math.floor(this.syncEnergy) + "%";
+        this.setLabel("center", this.syncEnergy > 0 ? energyText : "舉起雙手以蓄能");
+        
         this.setLabel("hint", "雙手保持高於肩膀");
     }
 
@@ -275,14 +312,14 @@ export default class Level3Overlay {
     }
 
     private drawRhythm(g: cc.Graphics): void {
-        const laneY = { nod: 52, shake: -52 };
+        const laneY = { nod: 52, tilt: -52 };
         this.drawLane(g, laneY.nod, cc.color(85, 255, 209));
-        this.drawLane(g, laneY.shake, cc.color(255, 124, 178));
+        this.drawLane(g, laneY.tilt, cc.color(255, 124, 178));
 
         const targetX = 265;
         const blockX = -395 + this.timingProgress * 660;
-        const blockY = this.activeAction === "shake" ? laneY.shake : laneY.nod;
-        const blockColor = this.activeAction === "shake" ? cc.color(255, 124, 178) : cc.color(85, 255, 209);
+        const blockY = this.activeAction === "tilt" ? laneY.tilt : laneY.nod;
+        const blockColor = this.activeAction === "tilt" ? cc.color(255, 124, 178) : cc.color(85, 255, 209);
 
         this.strokeRect(g, targetX - 34, -104, 68, 208, this.hitWindowActive ? cc.color(255, 216, 92) : cc.color(189, 228, 255), 4);
         this.fillRect(g, blockX - 28, blockY - 22, 56, 44, blockColor);
@@ -301,15 +338,159 @@ export default class Level3Overlay {
     }
 
     private drawSyncGate(g: cc.Graphics): void {
-        this.drawChargeBar(g, -245, 34, this.localReady, cc.color(85, 255, 209));
-        this.drawChargeBar(g, -245, -68, this.peerReady, cc.color(255, 124, 178));
-        this.strokeRect(g, -90, -126, 180, 252, cc.color(255, 216, 92), 4);
-        this.fillRect(g, -76, -112, 152, this.localReady && this.peerReady ? 224 : 78, cc.color(255, 216, 92, 160));
+        // Draw futuristic background sync grid
+        g.lineWidth = 1;
+        g.strokeColor = cc.color(189, 228, 255, 25);
+        // Vertical lines
+        for (let x = -320; x <= 320; x += 40) {
+            g.moveTo(x, -160);
+            g.lineTo(x, 100);
+            g.stroke();
+        }
+        // Horizontal lines
+        for (let y = -160; y <= 100; y += 40) {
+            g.moveTo(-320, y);
+            g.lineTo(320, y);
+            g.stroke();
+        }
+
+        // Draw HUD connection waves/circuits between nodes and core
+        g.lineWidth = 2;
+        g.strokeColor = cc.color(75, 86, 130, 100);
+        g.moveTo(-180, -30);
+        g.lineTo(-60, -30);
+        g.moveTo(180, -30);
+        g.lineTo(60, -30);
+        g.stroke();
+
+        // If local is ready, show active circuit animation
+        if (this.localReady) {
+            g.strokeColor = cc.color(85, 255, 209);
+            const dotX = -180 + 120 * ((this.scanTime * 1.5) % 1);
+            g.fillColor = cc.color(85, 255, 209);
+            g.arc(dotX, -30, 4, 0, Math.PI * 2, false);
+            g.fill();
+        }
+        // If peer is ready, show active circuit animation
+        if (this.peerReady) {
+            g.strokeColor = cc.color(255, 124, 178);
+            const dotX = 180 - 120 * ((this.scanTime * 1.5) % 1);
+            g.fillColor = cc.color(255, 124, 178);
+            g.arc(dotX, -30, 4, 0, Math.PI * 2, false);
+            g.fill();
+        }
+
+        // Draw Left Local Sync Circular HUD
+        this.drawSciFiCircle(g, -180, -30, 64, this.localVisualCharge, cc.color(85, 255, 209));
+
+        // Draw Right Peer Sync Circular HUD
+        this.drawSciFiCircle(g, 180, -30, 64, this.peerVisualCharge, cc.color(255, 124, 178));
+
+        // Draw Central Quantum Core / Gate
+        this.drawCentralCore(g, 0, -30);
     }
 
-    private drawChargeBar(g: cc.Graphics, x: number, y: number, ready: boolean, color: cc.Color): void {
-        this.strokeRect(g, x, y, 490, 38, cc.color(189, 228, 255), 2);
-        this.fillRect(g, x + 4, y + 4, ready ? 482 : 160, 30, color);
+    private drawSciFiCircle(g: cc.Graphics, cx: number, cy: number, radius: number, charge: number, color: cc.Color): void {
+        // 1. Draw outer dashed boundary or tech ticks
+        g.lineWidth = 1.5;
+        g.strokeColor = cc.color(color.r, color.g, color.b, 60);
+        g.arc(cx, cy, radius + 10, 0, Math.PI * 2, false);
+        g.stroke();
+
+        // Draw crosshairs
+        g.strokeColor = cc.color(color.r, color.g, color.b, 40);
+        g.moveTo(cx - radius - 15, cy);
+        g.lineTo(cx - radius - 5, cy);
+        g.moveTo(cx + radius + 5, cy);
+        g.lineTo(cx + radius + 15, cy);
+        g.moveTo(cx, cy - radius - 15);
+        g.lineTo(cx, cy - radius - 5);
+        g.moveTo(cx, cy + radius + 5);
+        g.lineTo(cx, cy + radius + 15);
+        g.stroke();
+
+        // 2. Draw inner background circle
+        g.lineWidth = 6;
+        g.strokeColor = cc.color(15, 25, 45, 180);
+        g.arc(cx, cy, radius, 0, Math.PI * 2, false);
+        g.stroke();
+
+        // 3. Draw active charge arc
+        if (charge > 0.01) {
+            g.lineWidth = 8;
+            g.strokeColor = color;
+            const startAngle = -Math.PI / 2;
+            const endAngle = startAngle + Math.PI * 2 * charge;
+            g.arc(cx, cy, radius, startAngle, endAngle, false);
+            g.stroke();
+        }
+
+        // 4. Draw central core blinking dot
+        const pulse = 0.6 + 0.4 * Math.sin(this.scanTime * 6);
+        g.fillColor = cc.color(color.r, color.g, color.b, Math.floor((40 + 160 * charge) * pulse));
+        g.arc(cx, cy, radius - 15, 0, Math.PI * 2, false);
+        g.fill();
+    }
+
+    private drawCentralCore(g: cc.Graphics, cx: number, cy: number): void {
+        const isReady = this.syncEnergy >= 100;
+        const pulseSpeed = isReady ? 12 : 3;
+        const pulse = 0.7 + 0.3 * Math.sin(this.scanTime * pulseSpeed);
+        const rotationAngle = this.scanTime * 0.8;
+
+        // Draw outer containment brackets (rotating)
+        g.lineWidth = 2;
+        g.strokeColor = isReady ? cc.color(255, 216, 92) : cc.color(75, 86, 130, 150);
+        
+        const bracketRadius = 55;
+        for (let i = 0; i < 3; i++) {
+            const angle = rotationAngle + (i * Math.PI * 2) / 3;
+            g.arc(cx, cy, bracketRadius, angle - 0.3, angle + 0.3, false);
+            g.stroke();
+        }
+
+        // Draw inner status shape
+        if (isReady) {
+            g.lineWidth = 3;
+            g.strokeColor = cc.color(255, 216, 92);
+            g.fillColor = cc.color(255, 216, 92, Math.floor(180 * pulse));
+            
+            const waveRadius = 15 + 35 * ((this.scanTime * 2) % 1);
+            g.strokeColor = cc.color(255, 216, 92, Math.floor(120 * (1 - ((this.scanTime * 2) % 1))));
+            g.arc(cx, cy, waveRadius, 0, Math.PI * 2, false);
+            g.stroke();
+
+            g.fillColor = cc.color(255, 216, 92, 220);
+            this.drawDiamond(g, cx, cy, 20);
+        } else {
+            g.lineWidth = 2;
+            g.strokeColor = cc.color(255, 216, 92, 100);
+            g.fillColor = cc.color(255, 216, 92, 40);
+            this.drawDiamond(g, cx, cy, 14);
+
+            g.strokeColor = cc.color(189, 228, 255, 80);
+            g.arc(cx, cy, 30, 0, Math.PI * 2, false);
+            g.stroke();
+
+            if (this.visualEnergy > 0.01) {
+                g.lineWidth = 6;
+                g.strokeColor = cc.color(85, 255, 209);
+                const startAngle = -Math.PI / 2;
+                const endAngle = startAngle + Math.PI * 2 * this.visualEnergy;
+                g.arc(cx, cy, 36, startAngle, endAngle, false);
+                g.stroke();
+            }
+        }
+    }
+
+    private drawDiamond(g: cc.Graphics, x: number, y: number, size: number): void {
+        g.moveTo(x, y + size);
+        g.lineTo(x + size, y);
+        g.lineTo(x, y - size);
+        g.lineTo(x - size, y);
+        g.close();
+        g.fill();
+        g.stroke();
     }
 
     private drawComplete(g: cc.Graphics): void {
@@ -362,130 +543,40 @@ export default class Level3Overlay {
 
     private actionText(action: HeadRhythmAction): string {
         if (action === "nod") return "點頭";
-        if (action === "shake") return "搖頭";
+        if (action === "tilt") return "歪頭";
         return "-";
     }
 }
 
 class Level3AudioCue {
-    private context: AudioContext | null = null;
     private readonly volume: number;
     private readonly enabled: boolean;
-    private readonly hitSoundUrls: string[];
-    private readonly missSoundUrls: string[];
-    private hitBuffer: AudioBuffer | null = null;
-    private missBuffer: AudioBuffer | null = null;
-    private hitLoadStarted: boolean = false;
-    private missLoadStarted: boolean = false;
+    private readonly hitClip: cc.AudioClip | null;
+    private readonly missClip: cc.AudioClip | null;
 
-    constructor(volume: number, enabled: boolean, hitSoundUrls: string[], missSoundUrls: string[]) {
+    constructor(
+        volume: number,
+        enabled: boolean,
+        hitClip: cc.AudioClip | null,
+        missClip: cc.AudioClip | null,
+    ) {
         this.volume = volume;
         this.enabled = enabled;
-        this.hitSoundUrls = hitSoundUrls;
-        this.missSoundUrls = missSoundUrls;
-        if (enabled) {
-            this.loadSample("hit");
-            this.loadSample("miss");
-        }
+        this.hitClip = hitClip;
+        this.missClip = missClip;
     }
 
     play(cue: AudioCue): void {
         if (!this.enabled) return;
-        const context = this.getContext();
-        if (!context) return;
-        if ((cue === "hit" || cue === "miss") && this.playSample(cue, context)) return;
 
-        const oscillator = context.createOscillator();
-        const gain = context.createGain();
-        oscillator.type = cue === "miss" ? "sawtooth" : "square";
-        oscillator.frequency.value = this.frequencyFor(cue);
-        gain.gain.value = Math.max(0, Math.min(1, this.volume));
-        oscillator.connect(gain);
-        gain.connect(context.destination);
-        oscillator.start();
-        gain.gain.exponentialRampToValueAtTime(0.001, context.currentTime + this.durationFor(cue));
-        oscillator.stop(context.currentTime + this.durationFor(cue));
+        if (cue === "hit" && this.hitClip) {
+            cc.audioEngine.play(this.hitClip, false, this.volume);
+        } else if (cue === "miss" && this.missClip) {
+            cc.audioEngine.play(this.missClip, false, this.volume);
+        }
     }
 
     close(): void {
-        this.context = null;
-    }
-
-    private playSample(cue: "hit" | "miss", context: AudioContext): boolean {
-        const buffer = cue === "hit" ? this.hitBuffer : this.missBuffer;
-        if (!buffer) {
-            this.loadSample(cue);
-            return false;
-        }
-
-        const source = context.createBufferSource();
-        const gain = context.createGain();
-        source.buffer = buffer;
-        gain.gain.value = Math.max(0, Math.min(1, this.volume));
-        source.connect(gain);
-        gain.connect(context.destination);
-        source.start();
-        return true;
-    }
-
-    private loadSample(cue: "hit" | "miss"): void {
-        if (cue === "hit" && this.hitLoadStarted) return;
-        if (cue === "miss" && this.missLoadStarted) return;
-        if (cue === "hit") this.hitLoadStarted = true;
-        if (cue === "miss") this.missLoadStarted = true;
-
-        const context = this.getContext();
-        if (!context) return;
-        const urls = cue === "hit" ? this.hitSoundUrls : this.missSoundUrls;
-        this.loadFirstAvailable(urls, context, (buffer) => {
-            if (cue === "hit") this.hitBuffer = buffer;
-            if (cue === "miss") this.missBuffer = buffer;
-        });
-    }
-
-    private loadFirstAvailable(urls: string[], context: AudioContext, done: (buffer: AudioBuffer) => void): void {
-        let index = 0;
-        const tryNext = () => {
-            if (index >= urls.length) return;
-            const url = urls[index];
-            index += 1;
-            fetch(url)
-                .then((response) => {
-                    if (!response.ok) throw new Error("Audio request failed");
-                    return response.arrayBuffer();
-                })
-                .then((arrayBuffer) => context.decodeAudioData(arrayBuffer))
-                .then(done)
-                .catch(tryNext);
-        };
-        tryNext();
-    }
-
-    private getContext(): AudioContext | null {
-        const AudioCtor = (window as any).AudioContext || (window as any).webkitAudioContext;
-        if (!AudioCtor) return null;
-        if (!this.context) {
-            this.context = new AudioCtor();
-        }
-        const context = this.context;
-        if (!context) return null;
-        if (context.state === "suspended") {
-            context.resume();
-        }
-        return context;
-    }
-
-    private frequencyFor(cue: AudioCue): number {
-        switch (cue) {
-            case "beat": return 330;
-            case "hit": return 660;
-            case "miss": return 150;
-            case "phaseClear": return 880;
-            case "complete": return 1040;
-        }
-    }
-
-    private durationFor(cue: AudioCue): number {
-        return cue === "complete" || cue === "phaseClear" ? 0.28 : 0.11;
+        // No manual audio cleanup needed since sound effects are fire-and-forget.
     }
 }

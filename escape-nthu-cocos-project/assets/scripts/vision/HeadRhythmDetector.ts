@@ -1,6 +1,6 @@
 import { PoseDetectionResult, PoseLandmark } from "./VisionTypes";
 
-export type HeadRhythmAction = "nod" | "shake" | "none";
+export type HeadRhythmAction = "nod" | "tilt" | "none";
 export type HeadRhythmPhase = "calibrating" | "neutral" | "moved" | "lost";
 
 export interface HeadRhythmDetectorOptions {
@@ -8,6 +8,7 @@ export interface HeadRhythmDetectorOptions {
     minVisibility: number;
     nodThreshold: number;
     shakeThreshold: number;
+    tiltThreshold: number;
     neutralThreshold: number;
     actionCooldownMs: number;
 }
@@ -23,6 +24,7 @@ export interface HeadRhythmFrameResult {
 type HeadSample = {
     relativeX: number;
     relativeY: number;
+    tilt: number;
     confidence: number;
 };
 
@@ -31,11 +33,14 @@ const DEFAULT_OPTIONS: HeadRhythmDetectorOptions = {
     minVisibility: 0.45,
     nodThreshold: 0.055,
     shakeThreshold: 0.06,
+    tiltThreshold: 0.2,
     neutralThreshold: 0.03,
     actionCooldownMs: 450,
 };
 
 const NOSE = 0;
+const LEFT_EAR = 7;
+const RIGHT_EAR = 8;
 const LEFT_SHOULDER = 11;
 const RIGHT_SHOULDER = 12;
 
@@ -46,6 +51,7 @@ export default class HeadRhythmDetector {
     private samples: HeadSample[] = [];
     private baseX: number = 0;
     private baseY: number = 0;
+    private baseTilt: number = 0;
     private waitingForNeutral: boolean = false;
     private lastActionAt: number = 0;
 
@@ -59,6 +65,7 @@ export default class HeadRhythmDetector {
         this.samples = [];
         this.baseX = 0;
         this.baseY = 0;
+        this.baseTilt = 0;
         this.waitingForNeutral = false;
         this.lastActionAt = 0;
     }
@@ -76,21 +83,23 @@ export default class HeadRhythmDetector {
 
         const dx = sample.relativeX - this.baseX;
         const dy = sample.relativeY - this.baseY;
+        const dtilt = sample.tilt - this.baseTilt;
         const isNeutral = Math.abs(dx) < this.options.neutralThreshold &&
-            Math.abs(dy) < this.options.neutralThreshold;
+            Math.abs(dy) < this.options.neutralThreshold &&
+            Math.abs(dtilt) < this.options.tiltThreshold * 0.6;
 
         if (isNeutral) {
             this.waitingForNeutral = false;
             this.phase = "neutral";
-            return this.frame("none", false, sample.confidence, "等待下一個頭部動作");
+            return this.frame("none", false, sample.confidence, "等待下一個動作");
         }
 
         if (this.waitingForNeutral || result.timestampMs - this.lastActionAt < this.options.actionCooldownMs) {
             this.phase = "moved";
-            return this.frame("none", false, sample.confidence, "回到正中間準備下一拍");
+            return this.frame("none", false, sample.confidence, "回復原位準備下一拍");
         }
 
-        const action = this.detectAction(dx, dy);
+        const action = this.detectAction(dx, dy, dtilt);
         if (action === "none") {
             this.phase = "moved";
             return this.frame("none", false, sample.confidence, "動作再明顯一點");
@@ -99,7 +108,7 @@ export default class HeadRhythmDetector {
         this.phase = "moved";
         this.waitingForNeutral = true;
         this.lastActionAt = result.timestampMs;
-        return this.frame(action, true, sample.confidence, action === "nod" ? "偵測到點頭" : "偵測到搖頭");
+        return this.frame(action, true, sample.confidence, action === "nod" ? "偵測到點頭" : "偵測到歪頭");
     }
 
     private processCalibration(timestampMs: number, sample: HeadSample): HeadRhythmFrameResult {
@@ -109,21 +118,22 @@ export default class HeadRhythmDetector {
 
         this.samples.push(sample);
         if (timestampMs - this.calibrationStartedAt < this.options.calibrationMs) {
-            return this.frame("none", false, sample.confidence, "請正對鏡頭校準頭部位置");
+            return this.frame("none", false, sample.confidence, "請正對鏡頭校準位置");
         }
 
         this.baseX = average(this.samples.map((item) => item.relativeX));
         this.baseY = average(this.samples.map((item) => item.relativeY));
+        this.baseTilt = average(this.samples.map((item) => item.tilt));
         this.phase = "neutral";
-        return this.frame("none", false, sample.confidence, "頭部校準完成，跟著節奏開始");
+        return this.frame("none", false, sample.confidence, "校準完成，跟著節奏開始");
     }
 
-    private detectAction(dx: number, dy: number): HeadRhythmAction {
+    private detectAction(dx: number, dy: number, dtilt: number): HeadRhythmAction {
+        if (Math.abs(dtilt) >= this.options.tiltThreshold) {
+            return "tilt";
+        }
         if (Math.abs(dy) >= this.options.nodThreshold && Math.abs(dy) >= Math.abs(dx)) {
             return "nod";
-        }
-        if (Math.abs(dx) >= this.options.shakeThreshold) {
-            return "shake";
         }
         return "none";
     }
@@ -145,9 +155,11 @@ export default class HeadRhythmDetector {
 
     private sampleHead(landmarks: PoseLandmark[]): HeadSample | null {
         const nose = landmarks[NOSE];
+        const leftEar = landmarks[LEFT_EAR];
+        const rightEar = landmarks[RIGHT_EAR];
         const leftShoulder = landmarks[LEFT_SHOULDER];
         const rightShoulder = landmarks[RIGHT_SHOULDER];
-        if (!this.isVisible(nose) || !this.isVisible(leftShoulder) || !this.isVisible(rightShoulder)) {
+        if (!this.isVisible(nose) || !this.isVisible(leftEar) || !this.isVisible(rightEar) || !this.isVisible(leftShoulder) || !this.isVisible(rightShoulder)) {
             return null;
         }
 
@@ -155,10 +167,16 @@ export default class HeadRhythmDetector {
         const shoulderCenterY = (leftShoulder.y + rightShoulder.y) / 2;
         const shoulderWidth = Math.max(0.1, Math.abs(leftShoulder.x - rightShoulder.x));
 
+        const earDx = rightEar.x - leftEar.x;
+        const earDy = rightEar.y - leftEar.y;
+        const earDistance = Math.max(0.01, Math.sqrt(earDx * earDx + earDy * earDy));
+        const tilt = earDy / earDistance;
+
         return {
             relativeX: (nose.x - shoulderCenterX) / shoulderWidth,
             relativeY: (nose.y - shoulderCenterY) / shoulderWidth,
-            confidence: average([landmarkScore(nose), landmarkScore(leftShoulder), landmarkScore(rightShoulder)]),
+            tilt,
+            confidence: average([landmarkScore(nose), landmarkScore(leftEar), landmarkScore(rightEar), landmarkScore(leftShoulder), landmarkScore(rightShoulder)]),
         };
     }
 

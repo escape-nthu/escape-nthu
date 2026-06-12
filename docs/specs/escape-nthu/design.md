@@ -354,7 +354,7 @@ type RoomState = {
     syncWindowMs: number;
     players: Record<string, { count: number; confidence: number; readyAt?: string }>;
     rhythm: {
-      pattern: Array<"nod" | "shake">;
+      pattern: Array<"nod" | "tilt">;
       targetSteps: number;
       players: Record<string, { step: number; confidence: number; completed: boolean; mistakes: number }>;
       completed: boolean;
@@ -384,7 +384,7 @@ Root
 
 - 使用瀏覽器攝影機輸入，只在前端做姿態辨識，避免傳送影像到後端。
 - MVP 使用 MediaPipe Pose CDN 快速整合；Cocos 透過 adapter 取得 normalized landmarks，不直接 import MediaPipe ESM。
-- Phase 1 指定節奏為 `點頭、搖頭、點頭、點頭`：以鼻子相對肩膀中心的位移判定 nod / shake。
+- Phase 1 指定節奏為 `點頭、歪頭、點頭、點頭`：以左右耳（7、8）高度差判定 nod / tilt。
 - Phase 2 指定動作為雙手舉起：以肩膀與手腕關鍵點判定雙手是否高於肩膀。
 - 兩位玩家完成 Phase 1 後，Phase 2 才能用同步 ready 完成 `level-03`。
 - 後端只接收節奏 step、舉手 count、readyAt 與 confidence，不保存影像。

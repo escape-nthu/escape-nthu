@@ -135,6 +135,18 @@ export default class Level3 extends cc.Component {
     @property(cc.Node)
     fallbackCompleteButton: cc.Node = null;
 
+    @property(cc.AudioClip)
+    hitClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    missClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    bgmClip: cc.AudioClip = null;
+
+    @property(cc.AudioClip)
+    victoryClip: cc.AudioClip = null;
+
     private rhythmDetector: HeadRhythmDetector = new HeadRhythmDetector();
     private raiseHandsDetector: RaiseHandsDetector = new RaiseHandsDetector();
     private adapter: MediaPipePoseAdapter | null = null;
@@ -145,7 +157,7 @@ export default class Level3 extends cc.Component {
     private targetCount: number = 1;
     private peerCount: number = 0;
     private phase: Level3Phase = "rhythm";
-    private rhythmPattern: HeadRhythmAction[] = ["nod", "shake", "nod", "nod"];
+    private rhythmPattern: HeadRhythmAction[] = ["nod", "tilt", "nod", "nod"];
     private rhythmStep: number = 0;
     private peerRhythmStep: number = 0;
     private rhythmTargetSteps: number = 4;
@@ -158,6 +170,11 @@ export default class Level3 extends cc.Component {
     private running: boolean = false;
     private debugFallback: boolean = false;
     private completionHandled: boolean = false;
+    private sceneBgmId: number = -1;
+    private syncEnergy: number = 0;
+    private localIsRaising: boolean = false;
+    private lastProgressReportedAt: number = 0;
+    private lastState: RoomStateSnapshot | null = null;
 
     onLoad() {
         this.debugFallback = this.isDebugGestureEnabled();
@@ -179,11 +196,51 @@ export default class Level3 extends cc.Component {
         }
     }
 
+    onEnable() {
+        EventBus.on("room:changed", this.onRoomChanged, this);
+        this.checkAndPlayBgm();
+    }
+
+    onDisable() {
+        EventBus.off("room:changed", this.onRoomChanged, this);
+        this.stopBgm();
+    }
+
+    start() {
+        this.checkAndPlayBgm();
+    }
+
     onDestroy() {
+        this.stopBgm();
         this.closeChallenge();
         EventBus.off("gesture-level:start", this.startChallenge, this);
         EventBus.off("room:state", this.onRoomState, this);
         cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
+    }
+
+    private onRoomChanged(roomId: string) {
+        if (roomId === "Room_level3") {
+            this.checkAndPlayBgm();
+        } else {
+            this.stopBgm();
+        }
+    }
+
+    private checkAndPlayBgm() {
+        if (RoomManager.instance && RoomManager.instance.getCurrentRoomId() === "Room_level3") {
+            if (this.sceneBgmId === -1 && this.bgmClip && this.audioEnabled) {
+                this.sceneBgmId = cc.audioEngine.play(this.bgmClip, true, this.audioVolume);
+            }
+        } else {
+            this.stopBgm();
+        }
+    }
+
+    private stopBgm() {
+        if (this.sceneBgmId !== -1) {
+            cc.audioEngine.stop(this.sceneBgmId);
+            this.sceneBgmId = -1;
+        }
     }
 
     private async startChallenge(): Promise<void> {
@@ -251,6 +308,14 @@ export default class Level3 extends cc.Component {
 
     private onKeyDown(event: cc.Event.EventKeyboard): void {
         if (this.running) {
+            if (event.keyCode === cc.macro.KEY.p) {
+                if (this.phase === "rhythm") {
+                    this.onFallbackRhythmComplete();
+                } else if (this.phase === "raiseHands") {
+                    this.completeLevelDirectly();
+                }
+                return;
+            }
             if (event.keyCode !== cc.macro.KEY.escape) return;
             this.setStatus("已離開姿態偵測，回到地圖");
             this.closeChallenge();
@@ -316,22 +381,19 @@ export default class Level3 extends cc.Component {
 
     private applyRaiseHandsFrame(frame: RaiseHandsFrameResult): void {
         this.setStatus(frame.message);
-        this.localCount = frame.progress >= 1 ? 1 : 0;
+        
+        const handsRaised = frame.phase === "raising" || frame.phase === "ready" || frame.ready;
+        const now = Date.now();
+        
+        if (handsRaised !== this.localIsRaising || now - this.lastProgressReportedAt > 300) {
+            this.localIsRaising = handsRaised;
+            this.lastProgressReportedAt = now;
+            this.postGestureProgress(handsRaised ? 1 : 0, frame.confidence, handsRaised);
+        }
+
+        this.localCount = handsRaised ? 1 : 0;
         this.updateProgressLabels();
         this.updatePixelOverlay();
-
-        if (frame.justCompleted && frame.count !== this.lastProgressSent) {
-            this.lastProgressSent = frame.count;
-            this.postGestureProgress(frame.count, frame.confidence);
-        }
-
-        if (frame.ready) {
-            const now = Date.now();
-            if (now - this.lastReadySentAt > 1000) {
-                this.lastReadySentAt = now;
-                this.postGestureReady(frame.confidence);
-            }
-        }
     }
 
     private onFallbackCount = (): void => {
@@ -353,9 +415,12 @@ export default class Level3 extends cc.Component {
     private onFallbackRhythmComplete = (): void => {
         this.rhythmStep = this.rhythmTargetSteps;
         this.rhythmBeatElapsed = 0;
+        this.phase = "raiseHands";
+        this.rhythmClockActive = false;
+        this.raiseHandsDetector.reset();
         if (this.pixelOverlay) this.pixelOverlay.flashPhaseClear();
         this.postRhythmProgress(this.rhythmStep, 1, false);
-        this.setStatus("Demo：第一階段完成");
+        this.setStatus("Phase 1 完成，請同步舉起雙手");
         this.updateProgressLabels();
     };
 
@@ -372,7 +437,7 @@ export default class Level3 extends cc.Component {
         this.completeLevelDirectly();
     };
 
-    private async postGestureProgress(count: number, confidence: number): Promise<void> {
+    private async postGestureProgress(count: number, confidence: number, isRaising = false): Promise<void> {
         if (!this.hasRoomIdentity()) return;
         try {
             const body = await this.postJson("/api/levels/gesture/progress", {
@@ -380,10 +445,11 @@ export default class Level3 extends cc.Component {
                 playerId: this.playerId,
                 count,
                 confidence,
+                isRaising,
             });
             this.onRoomState(body.state);
         } catch (error) {
-            this.setStatus("進度同步失敗，請確認後端連線");
+            // Silently ignore periodic api errors to avoid log spamming
         }
     }
 
@@ -432,6 +498,7 @@ export default class Level3 extends cc.Component {
 
     private onRoomState(state: RoomStateSnapshot): void {
         if (!state) return;
+        this.lastState = state;
 
         this.updateLocalRole(state);
 
@@ -440,6 +507,7 @@ export default class Level3 extends cc.Component {
             const local = state.gestureChallenge.players[this.playerId];
             if (local) this.localCount = local.count;
             this.peerCount = this.findPeerCount(state.gestureChallenge);
+            this.syncEnergy = state.gestureChallenge.energy ?? 0;
 
             if (state.gestureChallenge.rhythm) {
                 this.rhythmPattern = state.gestureChallenge.rhythm.pattern;
@@ -482,6 +550,12 @@ export default class Level3 extends cc.Component {
         }
         EventBus.emit("ui:toast", "逃生門解鎖！");
         EventBus.emit("gesture-level:completed");
+
+        this.stopBgm();
+        if (this.victoryClip && this.audioEnabled) {
+            cc.audioEngine.play(this.victoryClip, false, this.audioVolume);
+        }
+
         this.scheduleOnce(this.closeChallenge, 0.9);
     }
 
@@ -530,19 +604,18 @@ export default class Level3 extends cc.Component {
         if (this.countLabel) {
             this.countLabel.string = this.phase === "rhythm"
                 ? "你：" + this.rhythmStep + " / " + this.rhythmTargetSteps
-                : "你：" + (this.localCount >= this.targetCount ? "準備完成" : "等待舉手");
+                : "你：" + (this.localIsRaising ? "已舉起" : "未舉起");
         }
         if (this.peerLabel) {
+            const peerRaising = this.lastState ? this.findPeerRaising(this.lastState) : false;
             this.peerLabel.string = this.phase === "rhythm"
                 ? "隊友：" + this.peerRhythmStep + " / " + this.rhythmTargetSteps
-                : "隊友：" + (this.peerCount >= this.targetCount ? "準備完成" : "等待同步");
+                : "隊友：" + (peerRaising ? "已舉起" : "未舉起");
         }
         if (this.syncLabel) {
             this.syncLabel.string = this.phase === "rhythm"
                 ? "完成節奏後才能進入同步舉手"
-                : this.localCount >= this.targetCount
-                ? "保持雙手舉起，3 秒內與隊友同步開門"
-                : "雙手舉過肩膀並維持 2 秒";
+                : "雙手舉起進行同步蓄能";
         }
 
         this.updatePixelOverlay();
@@ -558,8 +631,8 @@ export default class Level3 extends cc.Component {
         this.pixelOverlay = new Level3Overlay(parent, {
             audioVolume: this.audioVolume,
             audioEnabled: this.audioEnabled,
-            hitSoundUrls: this.getLevel3AudioUrls("accept.wav"),
-            missSoundUrls: this.getLevel3AudioUrls("wrong.wav"),
+            hitClip: this.hitClip,
+            missClip: this.missClip,
             difficulty: this.normalizeDifficulty(this.difficulty),
             onDifficultyChange: this.onDifficultyChange,
         });
@@ -578,8 +651,20 @@ export default class Level3 extends cc.Component {
                 this.currentDetectorAction,
             );
         } else if (this.phase === "raiseHands") {
-            this.pixelOverlay.showRaiseHands(this.localCount >= this.targetCount, this.peerCount >= this.targetCount);
+            const peerRaising = this.lastState ? this.findPeerRaising(this.lastState) : false;
+            this.pixelOverlay.showRaiseHands(this.localIsRaising, peerRaising, this.syncEnergy);
         }
+    }
+
+    private findPeerRaising(state: RoomStateSnapshot): boolean {
+        if (!state.gestureChallenge) return false;
+        for (const playerId in state.gestureChallenge.players) {
+            if (playerId === this.playerId) continue;
+            if (state.gestureChallenge.players[playerId].isRaising) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private getRhythmBeatSeconds(): number {
@@ -649,6 +734,8 @@ export default class Level3 extends cc.Component {
 
     private getLevel3AudioUrls(fileName: string): string[] {
         return [
+            "res/raw-assets/Art/Level3/" + fileName,
+            "/res/raw-assets/Art/Level3/" + fileName,
             "assets/Art/Level3/" + fileName,
             "./assets/Art/Level3/" + fileName,
             "/assets/Art/Level3/" + fileName,
@@ -713,7 +800,7 @@ export default class Level3 extends cc.Component {
 
     private actionLabel(action: HeadRhythmAction): string {
         if (action === "nod") return "點頭";
-        if (action === "shake") return "搖頭";
+        if (action === "tilt") return "歪頭";
         return "等待";
     }
 
