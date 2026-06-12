@@ -31,13 +31,13 @@ describe("InMemoryRoomStore", () => {
     expect(state.escaped).toBe(true);
   });
 
-  it("requires two ready players inside the gesture sync window", () => {
+  it("requires two raised-hands ready players inside the gesture sync window", () => {
     const store = new InMemoryRoomStore();
     const created = store.createRoom("A");
     const joined = store.joinRoom(created.roomId, "B");
 
-    store.updateGestureProgress(created.roomId, created.player.playerId, 5, 0.9);
-    store.updateGestureProgress(created.roomId, joined.player.playerId, 5, 0.88);
+    store.updateGestureProgress(created.roomId, created.player.playerId, 1, 0.9);
+    store.updateGestureProgress(created.roomId, joined.player.playerId, 1, 0.88);
     const firstReady = store.markGestureReady(
       created.roomId,
       created.player.playerId,

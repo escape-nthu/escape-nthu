@@ -75,7 +75,7 @@ describe("HTTP API", () => {
     await app.close();
   });
 
-  it("tracks gesture progress and completes level 03 when both players sync ready", async () => {
+  it("tracks raised-hands progress and completes level 03 when both players sync ready", async () => {
     const app = await buildApp({ config: testConfig, logger: false });
     const created = (await app.inject({ method: "POST", url: "/api/rooms" })).json();
     const joined = (
@@ -89,12 +89,12 @@ describe("HTTP API", () => {
     await app.inject({
       method: "POST",
       url: "/api/levels/gesture/progress",
-      payload: { roomId: created.roomId, playerId: created.playerId, count: 5, confidence: 0.86 },
+      payload: { roomId: created.roomId, playerId: created.playerId, count: 1, confidence: 0.86 },
     });
     await app.inject({
       method: "POST",
       url: "/api/levels/gesture/progress",
-      payload: { roomId: created.roomId, playerId: joined.playerId, count: 5, confidence: 0.84 },
+      payload: { roomId: created.roomId, playerId: joined.playerId, count: 1, confidence: 0.84 },
     });
 
     const firstReady = await app.inject({

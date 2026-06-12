@@ -54,7 +54,7 @@ export class InMemoryRoomStore {
         completed: false,
       },
       gestureChallenge: {
-        targetCount: 5,
+        targetCount: 1,
         syncWindowMs: 3000,
         players: new Map(),
         completed: false,
