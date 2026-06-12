@@ -14,6 +14,7 @@ type GestureProgress = {
     count: number;
     confidence: number;
     readyAt?: string;
+    isRaising?: boolean;
 };
 
 type RhythmProgress = {
@@ -34,6 +35,7 @@ type GestureChallenge = {
         completed: boolean;
     };
     completed: boolean;
+    energy?: number;
 };
 
 type RoomStateSnapshot = {
@@ -516,6 +518,10 @@ export default class Level3 extends cc.Component {
                 const rhythmLocal = state.gestureChallenge.rhythm.players[this.playerId];
                 if (rhythmLocal) this.rhythmStep = rhythmLocal.step;
                 this.peerRhythmStep = this.findPeerRhythmStep(state.gestureChallenge);
+                if (state.gestureChallenge.rhythm.completed) {
+                    this.rhythmStep = Math.max(this.rhythmStep, this.rhythmTargetSteps);
+                    this.peerRhythmStep = Math.max(this.peerRhythmStep, this.rhythmTargetSteps);
+                }
                 if (state.gestureChallenge.rhythm.completed && this.phase === "rhythm") {
                     this.phase = "raiseHands";
                     this.rhythmBeatElapsed = 0;

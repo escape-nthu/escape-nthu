@@ -349,7 +349,7 @@ export class InMemoryRoomStore {
       return;
     }
 
-    if (!this.isGestureRhythmComplete(room, activePlayers)) {
+    if (!this.haveConnectedPlayersCompletedGestureRhythm(room, activePlayers)) {
       return;
     }
 
@@ -406,14 +406,23 @@ export class InMemoryRoomStore {
         players: Object.fromEntries(
           [...room.gestureChallenge.rhythm.players.entries()].sort(([a], [b]) => a.localeCompare(b)),
         ),
-        completed: this.isGestureRhythmComplete(room, [...room.players.keys()]),
+        completed: this.hasGestureRhythmPhaseCleared(room),
       },
       completed: room.gestureChallenge.completed,
       energy: room.gestureChallenge.energy,
     };
   }
 
-  private isGestureRhythmComplete(room: Room, activePlayers: string[]): boolean {
+  private hasGestureRhythmPhaseCleared(room: Room): boolean {
+    return [...room.players.keys()].some((playerId) => {
+      if (!room.players.get(playerId)?.connected) {
+        return false;
+      }
+      return room.gestureChallenge.rhythm.players.get(playerId)?.completed === true;
+    });
+  }
+
+  private haveConnectedPlayersCompletedGestureRhythm(room: Room, activePlayers: string[]): boolean {
     const connectedPlayers = activePlayers.filter((pId) => room.players.get(pId)?.connected);
     if (connectedPlayers.length < 2) {
       return false;

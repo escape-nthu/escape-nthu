@@ -73,4 +73,22 @@ describe("InMemoryRoomStore", () => {
     expect(completed.completedLevels).toContain("level-03");
     expect(completed.gestureChallenge.completed).toBe(true);
   });
+
+  it("moves the room to the raised-hands phase when one player finishes rhythm", () => {
+    const store = new InMemoryRoomStore();
+    const created = store.createRoom("A");
+    const joined = store.joinRoom(created.roomId, "B");
+
+    const phaseState = store.updateGestureRhythmProgress(
+      created.roomId,
+      joined.player.playerId,
+      4,
+      0.88,
+    );
+
+    expect(phaseState.gestureChallenge.rhythm.completed).toBe(true);
+    expect(phaseState.gestureChallenge.rhythm.players[joined.player.playerId].completed).toBe(true);
+    expect(phaseState.gestureChallenge.rhythm.players[created.player.playerId]).toBeUndefined();
+    expect(phaseState.completedLevels).not.toContain("level-03");
+  });
 });
