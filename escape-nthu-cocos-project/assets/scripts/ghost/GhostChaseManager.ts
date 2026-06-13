@@ -67,7 +67,9 @@ export default class GhostChaseManager extends cc.Component {
     private gridCache: Map<string, NavGrid> = new Map();
     private ghostRoomId: string = "";
     private ghostLastPos: cc.Vec2 = cc.v2(0, 0);
-    private pendingSpawnCallback: Function = null;
+    private pendingSpawnCallback: Function | null = null;
+    private nextChaseCallback: Function | null = null;
+    private chaseEnabled: boolean = false;
     private gameOver: boolean = false;
 
     onLoad() {
@@ -80,18 +82,23 @@ export default class GhostChaseManager extends cc.Component {
         EventBus.on("room:changed", this.onRoomChanged, this);
         EventBus.on("ghost:caught", this.onGhostCaught, this);
         EventBus.on("ghost:hit-by-riceball", this.onGhostHitByRiceBall, this);
+        EventBus.on("network:room-connected", this.onRoomConnected, this);
+        EventBus.on("network:socket-open", this.onRoomConnected, this);
+        EventBus.on("network:room-error", this.onRoomUnavailable, this);
+        EventBus.on("network:socket-closed", this.onRoomUnavailable, this);
 
         if (this.ghostNodeRef) this.ghostNodeRef.active = false;
         if (this.gameOverOverlay) this.gameOverOverlay.active = false;
-
-        const delay = this.minInitialDelay + Math.random() * (this.maxInitialDelay - this.minInitialDelay);
-        this.scheduleOnce(() => this.startChase(), delay);
     }
 
     onDestroy() {
         EventBus.off("room:changed", this.onRoomChanged, this);
         EventBus.off("ghost:caught", this.onGhostCaught, this);
         EventBus.off("ghost:hit-by-riceball", this.onGhostHitByRiceBall, this);
+        EventBus.off("network:room-connected", this.onRoomConnected, this);
+        EventBus.off("network:socket-open", this.onRoomConnected, this);
+        EventBus.off("network:room-error", this.onRoomUnavailable, this);
+        EventBus.off("network:socket-closed", this.onRoomUnavailable, this);
     }
 
     update(dt: number) {
@@ -104,6 +111,7 @@ export default class GhostChaseManager extends cc.Component {
     }
 
     private startChase(): void {
+        if (!this.chaseEnabled) return;
         if (this.gameOver) return;
         if (this.totalChaseCount >= this.maxTotalChases) return;
 
@@ -169,10 +177,41 @@ export default class GhostChaseManager extends cc.Component {
         const audio = AudioManager.instance;
         if (audio) audio.fadeOutBGM(1.0);
 
-        if (this.totalChaseCount < this.maxTotalChases) {
-            const delay = this.minCooldown + Math.random() * (this.maxCooldown - this.minCooldown);
-            this.scheduleOnce(() => this.startChase(), delay);
+        if (this.chaseEnabled && this.totalChaseCount < this.maxTotalChases) {
+            this.scheduleNextChase(this.randomDelay(this.minCooldown, this.maxCooldown));
         }
+    }
+
+    private onRoomConnected(): void {
+        if (this.gameOver || this.chaseEnabled) return;
+        this.chaseEnabled = true;
+        this.scheduleNextChase(this.randomDelay(this.minInitialDelay, this.maxInitialDelay));
+    }
+
+    private onRoomUnavailable(): void {
+        this.chaseEnabled = false;
+        this.clearNextChase();
+        this.endChase();
+    }
+
+    private scheduleNextChase(delay: number): void {
+        this.clearNextChase();
+        const cb = () => {
+            this.nextChaseCallback = null;
+            this.startChase();
+        };
+        this.nextChaseCallback = cb;
+        this.scheduleOnce(cb, delay);
+    }
+
+    private clearNextChase(): void {
+        if (!this.nextChaseCallback) return;
+        this.unschedule(this.nextChaseCallback as any);
+        this.nextChaseCallback = null;
+    }
+
+    private randomDelay(min: number, max: number): number {
+        return min + Math.random() * Math.max(0, max - min);
     }
 
     private onRoomChanged(newRoomId: string): void {
