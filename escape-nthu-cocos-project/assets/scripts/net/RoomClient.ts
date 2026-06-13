@@ -74,6 +74,15 @@ export default class RoomClient extends cc.Component {
         return !!this.socket && this.socket.readyState === WebSocket.OPEN;
     }
 
+    getSessionInfo(): { roomId: string; playerId: string; role: PlayerRole } | null {
+        if (!this.roomId || !this.playerId) return null;
+        return {
+            roomId: this.roomId,
+            playerId: this.playerId,
+            role: this.role,
+        };
+    }
+
     start(): void {
         if (!this.socket) {
             this.tryRestoreSession();
@@ -161,17 +170,25 @@ export default class RoomClient extends cc.Component {
         this.disconnect();
 
         const wsUrl = this.toWebSocketUrl(this.apiBaseUrl, this.roomId, this.playerId);
-        this.socket = new WebSocket(wsUrl);
-        this.socket.onopen = () => {
+        const socket = new WebSocket(wsUrl);
+        this.socket = socket;
+        socket.onopen = () => {
+            if (this.socket !== socket) return;
             EventBus.emit("network:socket-open", { roomId: this.roomId, playerId: this.playerId, role: this.role });
             this.startPing();
         };
-        this.socket.onmessage = (event) => this.handleSocketMessage(event.data);
-        this.socket.onerror = () => {
+        socket.onmessage = (event) => {
+            if (this.socket !== socket) return;
+            this.handleSocketMessage(event.data);
+        };
+        socket.onerror = () => {
+            if (this.socket !== socket) return;
             EventBus.emit("network:room-error", "WebSocket 連線失敗");
         };
-        this.socket.onclose = () => {
+        socket.onclose = () => {
+            if (this.socket !== socket) return;
             this.stopPing();
+            this.socket = null;
             EventBus.emit("network:socket-closed", { roomId: this.roomId, playerId: this.playerId });
         };
     }
@@ -195,10 +212,10 @@ export default class RoomClient extends cc.Component {
     }
 
     private disconnect(): void {
-        if (this.socket) {
-            this.socket.close();
-            this.socket = null;
-        }
+        const socket = this.socket;
+        if (!socket) return;
+        this.socket = null;
+        socket.close();
     }
 
     private handleSocketMessage(raw: string): void {

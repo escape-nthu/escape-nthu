@@ -11,9 +11,13 @@ export default class HUDPanel extends cc.Component {
     onLoad() {
         // Register event listeners
         EventBus.on("network:room-connected", this.onRoomConnected, this);
+        EventBus.on("network:socket-open", this.onSocketOpen, this);
         EventBus.on("network:room-error", this.onRoomDisconnected, this);
         EventBus.on("network:socket-closed", this.onRoomDisconnected, this);
         EventBus.on("lobby:start-game", this.onLobbyStart, this);
+
+        this.node.group = "ui";
+        if (this.label) this.label.node.group = "ui";
 
         // Hide initially
         this.node.active = false;
@@ -24,6 +28,7 @@ export default class HUDPanel extends cc.Component {
 
     onDestroy() {
         EventBus.off("network:room-connected", this.onRoomConnected, this);
+        EventBus.off("network:socket-open", this.onSocketOpen, this);
         EventBus.off("network:room-error", this.onRoomDisconnected, this);
         EventBus.off("network:socket-closed", this.onRoomDisconnected, this);
         EventBus.off("lobby:start-game", this.onLobbyStart, this);
@@ -36,11 +41,16 @@ export default class HUDPanel extends cc.Component {
         if (widget) widget.updateAlignment();
     }
 
+    private onSocketOpen(payload: { roomId: string; role: string }): void {
+        this.onRoomConnected(payload);
+    }
+
     private onLobbyStart(): void {
         this.node.active = false;
     }
 
     private onRoomDisconnected(): void {
+        if (RoomClient.instance && RoomClient.instance.isConnected()) return;
         this.node.active = false;
     }
 
@@ -51,14 +61,10 @@ export default class HUDPanel extends cc.Component {
     }
 
     private checkInitialState(): void {
-        if (RoomClient.instance && RoomClient.instance.isConnected()) {
-            if (typeof localStorage !== "undefined") {
-                const roomId = localStorage.getItem("escape-nthu:roomId") || "";
-                const role = localStorage.getItem("escape-nthu:role") || "A";
-                if (roomId) {
-                    this.onRoomConnected({ roomId, role });
-                }
-            }
+        if (!RoomClient.instance) return;
+        const session = RoomClient.instance.getSessionInfo();
+        if (session) {
+            this.onRoomConnected(session);
         }
     }
 }
