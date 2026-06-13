@@ -528,6 +528,45 @@
     "_enabled": true,
     "walkSpeed": 160,
     "sprintSpeed": 280,
+    "visualSprite": {
+      "__id__": 8
+    },
+    "idleFrame": {
+      "__uuid__": "7011ba11-d7a2-4fee-83ce-0f9e9d0d82fd"
+    },
+    "walkDownFrames": [
+      {
+        "__uuid__": "9acd7e55-d186-431d-be42-b6507c10cbe1"
+      },
+      {
+        "__uuid__": "a0cf770f-90db-40ab-b77c-449c2d85dd6d"
+      }
+    ],
+    "walkUpFrames": [
+      {
+        "__uuid__": "8bbd6641-36e3-4c3f-8db4-70fab5129766"
+      },
+      {
+        "__uuid__": "94ac1ad0-7c80-4185-a99e-48504dc2b3e6"
+      }
+    ],
+    "walkLeftFrames": [
+      {
+        "__uuid__": "bc325ef2-7e33-4f69-9ac1-8cfd7c79c5ed"
+      },
+      {
+        "__uuid__": "aa0f7e13-edc6-4222-b283-a203fb803e1a"
+      }
+    ],
+    "walkRightFrames": [
+      {
+        "__uuid__": "ba63bdc9-880e-4da4-9570-1a8c3ea0f539"
+      },
+      {
+        "__uuid__": "6bd437f8-05dd-4f92-ba7c-9127d5244678"
+      }
+    ],
+    "walkAnimationFps": 8,
     "_id": "83QnDvSy5D0qm+M8+r++An"
   },
   {

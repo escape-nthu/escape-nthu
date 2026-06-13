@@ -6,6 +6,7 @@ import MediaPipePoseAdapter from "../vision/MediaPipePoseAdapter";
 import HeadRhythmDetector, { HeadRhythmAction, HeadRhythmFrameResult } from "../vision/HeadRhythmDetector";
 import RaiseHandsDetector, { RaiseHandsFrameResult } from "../vision/RaiseHandsDetector";
 import { PoseDetectionResult, PoseLandmark } from "../vision/VisionTypes";
+import RoomClient from "../net/RoomClient";
 
 const { ccclass, property } = cc._decorator;
 const DEFAULT_API_BASE_URL = "https://escape-nthu-server-vcuhs5ugda-de.a.run.app";
@@ -179,6 +180,7 @@ export default class Level3 extends cc.Component {
     private lastProgressReportedAt: number = 0;
     private lastState: RoomStateSnapshot | null = null;
     private challengeStartedOnce: boolean = false;
+    private stateRefreshInFlight: boolean = false;
 
     onLoad() {
         this.debugFallback = this.isDebugGestureEnabled();
@@ -270,6 +272,7 @@ export default class Level3 extends cc.Component {
         if (this.pixelOverlay) this.pixelOverlay.playBeat();
         this.setFallbackVisible(this.debugFallback);
 
+        this.startRoomStatePolling();
         await this.refreshRoomState();
         if (!this.running || this.phase === "completed" || !this.adapter) {
             return;
@@ -333,6 +336,7 @@ export default class Level3 extends cc.Component {
 
     private closeChallenge = (): void => {
         this.unschedule(this.closeChallenge);
+        this.stopRoomStatePolling();
         this.running = false;
         if (this.adapter) {
             this.adapter.stop();
@@ -544,6 +548,7 @@ export default class Level3 extends cc.Component {
     }
 
     private async refreshRoomState(): Promise<void> {
+        this.syncIdentityFromRoomClient();
         if (!this.hasRoomIdentity()) {
             return;
         }
@@ -557,6 +562,19 @@ export default class Level3 extends cc.Component {
                 return;
             }
             this.setStatus("讀取關卡狀態失敗，將以目前狀態繼續");
+        }
+    }
+
+    private async refreshRoomStateQuietly(): Promise<void> {
+        this.syncIdentityFromRoomClient();
+        if (!this.roomId || !this.playerId) return;
+
+        try {
+            const state = await this.getJson("/api/rooms/" + encodeURIComponent(this.roomId.toUpperCase()));
+            if (!this.running) return;
+            this.onRoomState(state);
+        } catch (_error) {
+            // Background sync is a safety net for missed socket messages; keep UI status stable on failure.
         }
     }
 
@@ -977,6 +995,7 @@ export default class Level3 extends cc.Component {
     }
 
     private hasRoomIdentity(): boolean {
+        this.syncIdentityFromRoomClient();
         if (this.roomId && this.playerId) return true;
         this.loadIdentityFromStorage();
         if (this.roomId && this.playerId) return true;
@@ -985,12 +1004,46 @@ export default class Level3 extends cc.Component {
         return false;
     }
 
+    private syncIdentityFromRoomClient(): void {
+        if (!RoomClient.instance) return;
+
+        const session = RoomClient.instance.getSessionInfo();
+        if (!session) return;
+
+        this.apiBaseUrl = this.normalizeApiBaseUrl(RoomClient.instance.apiBaseUrl || this.apiBaseUrl);
+        this.roomId = session.roomId;
+        this.playerId = session.playerId;
+        this.localRole = session.role;
+        RoomClient.instance.ensureConnected();
+    }
+
     private loadIdentityFromStorage(): void {
         if (typeof localStorage === "undefined") return;
         this.apiBaseUrl = this.normalizeApiBaseUrl(localStorage.getItem("escape-nthu:apiBaseUrl") || this.apiBaseUrl);
         this.roomId = this.roomId || localStorage.getItem("escape-nthu:roomId") || "";
         this.playerId = this.playerId || localStorage.getItem("escape-nthu:playerId") || "";
     }
+
+    private startRoomStatePolling(): void {
+        this.stopRoomStatePolling();
+        this.schedule(this.pollRoomState, 0.75);
+    }
+
+    private stopRoomStatePolling(): void {
+        this.unschedule(this.pollRoomState);
+        this.stateRefreshInFlight = false;
+    }
+
+    private pollRoomState = (): void => {
+        if (!this.running || this.phase === "completed" || this.stateRefreshInFlight) return;
+
+        this.stateRefreshInFlight = true;
+        this.refreshRoomStateQuietly().then(() => {
+            this.stateRefreshInFlight = false;
+        }, () => {
+            this.stateRefreshInFlight = false;
+        });
+    };
 
     private normalizeApiBaseUrl(value: string): string {
         const trimmed = (value || "").trim().replace(/\/$/, "");

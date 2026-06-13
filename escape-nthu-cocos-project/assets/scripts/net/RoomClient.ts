@@ -50,6 +50,8 @@ export default class RoomClient extends cc.Component {
     private role: PlayerRole = "A";
     private remotePlayers: Map<string, cc.Node> = new Map();
     private lastSentAt: number = 0;
+    private reconnectTimer: number = 0;
+    private reconnectAttempts: number = 0;
 
     onLoad(): void {
         RoomClient.instance = this;
@@ -72,6 +74,15 @@ export default class RoomClient extends cc.Component {
 
     isConnected(): boolean {
         return !!this.socket && this.socket.readyState === WebSocket.OPEN;
+    }
+
+    ensureConnected(): void {
+        if (!this.roomId || !this.playerId) return;
+        if (this.socket &&
+            (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) {
+            return;
+        }
+        this.connectSocket();
     }
 
     getSessionInfo(): { roomId: string; playerId: string; role: PlayerRole } | null {
@@ -167,6 +178,7 @@ export default class RoomClient extends cc.Component {
     }
 
     private connectSocket(): void {
+        this.clearReconnectTimer();
         this.disconnect();
 
         const wsUrl = this.toWebSocketUrl(this.apiBaseUrl, this.roomId, this.playerId);
@@ -174,6 +186,7 @@ export default class RoomClient extends cc.Component {
         this.socket = socket;
         socket.onopen = () => {
             if (this.socket !== socket) return;
+            this.reconnectAttempts = 0;
             EventBus.emit("network:socket-open", { roomId: this.roomId, playerId: this.playerId, role: this.role });
             this.startPing();
         };
@@ -190,6 +203,7 @@ export default class RoomClient extends cc.Component {
             this.stopPing();
             this.socket = null;
             EventBus.emit("network:socket-closed", { roomId: this.roomId, playerId: this.playerId });
+            this.scheduleReconnect();
         };
     }
 
@@ -212,10 +226,28 @@ export default class RoomClient extends cc.Component {
     }
 
     private disconnect(): void {
+        this.clearReconnectTimer();
         const socket = this.socket;
         if (!socket) return;
         this.socket = null;
         socket.close();
+    }
+
+    private scheduleReconnect(): void {
+        if (!this.roomId || !this.playerId || this.reconnectTimer) return;
+
+        const delay = Math.min(5000, 1000 * Math.pow(2, this.reconnectAttempts));
+        this.reconnectAttempts += 1;
+        this.reconnectTimer = window.setTimeout(() => {
+            this.reconnectTimer = 0;
+            this.ensureConnected();
+        }, delay);
+    }
+
+    private clearReconnectTimer(): void {
+        if (!this.reconnectTimer) return;
+        window.clearTimeout(this.reconnectTimer);
+        this.reconnectTimer = 0;
     }
 
     private handleSocketMessage(raw: string): void {
