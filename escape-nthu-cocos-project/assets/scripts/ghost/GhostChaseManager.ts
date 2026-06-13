@@ -58,6 +58,9 @@ export default class GhostChaseManager extends cc.Component {
     @property({ type: cc.Label, tooltip: "Game Over 文字 Label" })
     gameOverLabel: cc.Label = null;
 
+    @property({ tooltip: "復活後多久再次允許鬼追逐 (秒)" })
+    respawnGraceSeconds: number = 8;
+
     private ghostNode: cc.Node = null;
     private ghostCtrl: GhostController = null;
     private chaseActive: boolean = false;
@@ -71,6 +74,7 @@ export default class GhostChaseManager extends cc.Component {
     private nextChaseCallback: Function | null = null;
     private chaseEnabled: boolean = false;
     private gameOver: boolean = false;
+    private respawnButtonNode: cc.Node | null = null;
 
     onLoad() {
         if (GhostChaseManager.instance) {
@@ -299,33 +303,161 @@ export default class GhostChaseManager extends cc.Component {
         if (this.gameOver) return;
         this.gameOver = true;
         this.chaseActive = false;
+        this.clearNextChase();
+        if (this.pendingSpawnCallback) {
+            this.unschedule(this.pendingSpawnCallback as any);
+            this.pendingSpawnCallback = null;
+        }
 
         const audio = AudioManager.instance;
         if (audio) audio.stopBGM();
 
         EventBus.emit("chase:end");
+        if (this.ghostCtrl) this.ghostCtrl.despawn();
+
+        const overlay = this.ensureGameOverOverlay();
+        if (!overlay) return;
+
+        overlay.active = true;
+        overlay.opacity = 0;
+        overlay.color = cc.Color.RED;
+
+        if (this.gameOverLabel) {
+            this.gameOverLabel.string = "GAME OVER";
+        }
+
+        this.ensureRespawnButton(overlay);
+        cc.tween(overlay)
+            .to(0.3, { opacity: 210 })
+            .to(0.5, { opacity: 245, color: cc.Color.BLACK })
+            .start();
+    }
+
+    private respawnPlayer = (): void => {
+        if (!this.gameOver) return;
+
+        cc.Tween.stopAllByTarget(this.gameOverOverlay);
+        this.gameOver = false;
+        this.chaseActive = false;
+        this.chaseDurationTimer = 0;
+        this.currentChaseRoomCount = 0;
+
+        if (this.ghostCtrl) {
+            this.ghostCtrl.despawn();
+        } else if (this.ghostNodeRef) {
+            this.ghostNodeRef.active = false;
+        }
 
         if (this.gameOverOverlay) {
-            this.gameOverOverlay.active = true;
-            this.gameOverOverlay.opacity = 0;
-            this.gameOverOverlay.color = cc.Color.RED;
+            this.gameOverOverlay.active = false;
+        }
 
-            if (this.gameOverLabel) {
-                this.gameOverLabel.string = "GAME OVER";
-            }
+        this.movePlayerToCurrentRoomSpawn();
+        EventBus.emit("ui:toast", "已復活");
 
-            cc.tween(this.gameOverOverlay)
-                .to(0.3, { opacity: 200 })
-                .to(0.5, { opacity: 255, color: cc.Color.BLACK })
-                .delay(1.0)
-                .call(() => {
-                    cc.director.loadScene("Game");
-                })
-                .start();
+        if (this.chaseEnabled && this.totalChaseCount < this.maxTotalChases) {
+            this.scheduleNextChase(Math.max(0, this.respawnGraceSeconds));
+        }
+    };
+
+    private ensureGameOverOverlay(): cc.Node | null {
+        if (this.gameOverOverlay) return this.gameOverOverlay;
+
+        const parent = cc.find("UICanvas") || cc.director.getScene();
+        if (!parent) return null;
+
+        const overlay = new cc.Node("GameOverOverlay");
+        overlay.parent = parent;
+        overlay.group = "ui";
+        overlay.zIndex = 1000;
+        overlay.setContentSize(10000, 10000);
+        overlay.setPosition(0, 0);
+
+        const bg = overlay.addComponent(cc.Graphics);
+        bg.fillColor = cc.color(0, 0, 0, 230);
+        bg.roundRect(-5000, -5000, 10000, 10000, 0);
+        bg.fill();
+
+        const labelNode = new cc.Node("GameOverLabel");
+        labelNode.parent = overlay;
+        labelNode.group = "ui";
+        labelNode.setPosition(0, 96);
+        const label = labelNode.addComponent(cc.Label);
+        label.string = "GAME OVER";
+        label.fontSize = 54;
+        label.lineHeight = 64;
+        label.enableBold = true;
+        label.horizontalAlign = cc.Label.HorizontalAlign.CENTER;
+        label.verticalAlign = cc.Label.VerticalAlign.CENTER;
+        label.node.color = cc.color(255, 240, 220);
+
+        this.gameOverOverlay = overlay;
+        this.gameOverLabel = label;
+        return overlay;
+    }
+
+    private ensureRespawnButton(overlay: cc.Node): void {
+        if (this.respawnButtonNode && this.respawnButtonNode.isValid) {
+            this.respawnButtonNode.active = true;
+            return;
+        }
+
+        const buttonNode = new cc.Node("RespawnButton");
+        buttonNode.parent = overlay;
+        buttonNode.group = "ui";
+        buttonNode.setContentSize(220, 54);
+        buttonNode.setPosition(0, -150);
+
+        const gfx = buttonNode.addComponent(cc.Graphics);
+        gfx.fillColor = cc.color(38, 138, 112, 255);
+        gfx.roundRect(-110, -27, 220, 54, 8);
+        gfx.fill();
+        gfx.strokeColor = cc.color(190, 255, 226, 220);
+        gfx.lineWidth = 2;
+        gfx.roundRect(-110, -27, 220, 54, 8);
+        gfx.stroke();
+
+        const button = buttonNode.addComponent(cc.Button);
+        button.transition = cc.Button.Transition.SCALE;
+        button.zoomScale = 0.96;
+        buttonNode.on(cc.Node.EventType.TOUCH_END, this.respawnPlayer, this);
+        buttonNode.on("click", this.respawnPlayer, this);
+
+        const labelNode = new cc.Node("RespawnButtonLabel");
+        labelNode.parent = buttonNode;
+        labelNode.group = "ui";
+        labelNode.setPosition(0, 0);
+        const label = labelNode.addComponent(cc.Label);
+        label.string = "復活";
+        label.fontSize = 24;
+        label.lineHeight = 30;
+        label.enableBold = true;
+        label.horizontalAlign = cc.Label.HorizontalAlign.CENTER;
+        label.verticalAlign = cc.Label.VerticalAlign.CENTER;
+        label.node.color = cc.color(255, 255, 255);
+
+        this.respawnButtonNode = buttonNode;
+    }
+
+    private movePlayerToCurrentRoomSpawn(): void {
+        const rm = RoomManager.instance;
+        if (!rm || !rm.localPlayer) return;
+
+        const roomId = rm.getCurrentRoomId();
+        const roomNode = rm.getLoadedRoom(roomId);
+        if (!roomNode) return;
+
+        const spawnNode = roomNode.getChildByName("SpawnPointA") || roomNode.getChildByName("SpawnPoint");
+        if (spawnNode) {
+            rm.localPlayer.setPosition(spawnNode.position);
+            return;
+        }
+
+        const rc = roomNode.getComponent(RoomController);
+        if (rc) {
+            rm.localPlayer.setPosition(rc.roomWidth / 2, rc.roomHeight / 2);
         } else {
-            this.scheduleOnce(() => {
-                cc.director.loadScene("Game");
-            }, 2.0);
+            rm.localPlayer.setPosition(0, 0);
         }
     }
 
