@@ -2,6 +2,7 @@ import { ROOM_REGISTRY, getInitialRoom } from "./RoomRegistry";
 import DoorTrigger from "./DoorTrigger";
 import RoomController from "./RoomController";
 import EventBus from "../core/EventBus";
+import GameState from "../core/GameState";
 
 const { ccclass, property } = cc._decorator;
 
@@ -24,11 +25,13 @@ export default class RoomManager extends cc.Component {
         RoomManager.instance = this;
         EventBus.on("door:enter", this.onDoorEnter, this);
         EventBus.on("network:room-transition", this.onNetworkRoomTransition, this);
+        cc.systemEvent.on(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
     }
 
     onDestroy() {
         EventBus.off("door:enter", this.onDoorEnter, this);
         EventBus.off("network:room-transition", this.onNetworkRoomTransition, this);
+        cc.systemEvent.off(cc.SystemEvent.EventType.KEY_DOWN, this.onKeyDown, this);
     }
 
     start() {
@@ -68,6 +71,15 @@ export default class RoomManager extends cc.Component {
     private onNetworkRoomTransition(payload: { targetRoomId: string; arrivalDoorId: string }): void {
         if (!payload || !payload.targetRoomId || !payload.arrivalDoorId) return;
         this.enterRoom(payload.targetRoomId, payload.arrivalDoorId);
+    }
+
+    private onKeyDown(event: cc.Event.EventKeyboard) {
+        if (event.keyCode === cc.macro.KEY.p && this.currentRoomId === "Room_2") {
+            if (GameState.instance) {
+                GameState.instance.unlockDoor("d_to_level3");
+            }
+            this.onDoorEnter("d_to_level3");
+        }
     }
 
     async enterRoom(targetRoomId: string, arrivalDoorId: string | null): Promise<void> {

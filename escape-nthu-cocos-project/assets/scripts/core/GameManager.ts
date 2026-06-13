@@ -20,7 +20,7 @@ export default class GameManager extends cc.Component {
     onLoad() {
         const collisionMgr = cc.director.getCollisionManager();
         collisionMgr.enabled = true;
-        collisionMgr.enabledDebugDraw = true; // TODO: disable for production
+        collisionMgr.enabledDebugDraw = false;
 
         if (this.gameCamera) {
             this.gameCamera.cullingMask = GAME_GROUPS;
@@ -56,4 +56,3 @@ export default class GameManager extends cc.Component {
         client.localPlayer = cc.find("Player");
     }
 }
-
